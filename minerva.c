@@ -21,14 +21,7 @@
 #include "sha3.h"
 #include "miner.h"
 
-#define DATALENGTH  2048	 //2048 520
-#define PMTSIZE  4
-#define TBLSIZE  16
-#define TARGETLEN	16
-#define OFF_SKIP_LEN  32768 	     //32768  8230
-#define OFF_CYCLE_LEN  8192	    	 //8192  2080
-#define SKIP_CYCLE_LEN 2048     	//2048 520
-#define HEADSIZE 32
+
 
 static const int DGSTSIZE = 32;
 static const int UPDATABLOCKLENGTH = 12000; //12000  3000
