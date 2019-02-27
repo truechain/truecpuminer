@@ -248,7 +248,7 @@ static void init_dataset() {
 }
 static void free_dataset() {
     if (_ds.dataset != 0) {
-        free(_ds.dataset)
+        free(_ds.dataset);
         _ds.dataset = 0;
     } 
 }
@@ -560,7 +560,7 @@ out:
 	return NULL;
 }
 
-static void restart_threads(void)
+inline void restart_threads(void)
 {
 	for (int i = 0; i < opt_n_threads; i++)
 		work_restart[i].restart = 1;
@@ -639,7 +639,7 @@ static void *stratum_thread(void *userdata)
                 if (wait_stop_use_dataset()) {
                     _ds.dataset = updateLookupTBL((uint8_t(*)[32])seeds,_ds.dataset,_ds.len);
                     dataset_hash(_ds.seedhash,_ds.dataset,_ds.len);
-                    update_use_dataset()
+                    update_use_dataset();
                 }
             }           
             free_seeds(seeds)
