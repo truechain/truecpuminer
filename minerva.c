@@ -343,6 +343,7 @@ inline int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t 
 		}
 		if (memcmp(head, target, sizeof(target)) < 0) {
 			*hashes_done = n - first_nonce + 1;
+			work_restart[thr_id].stopped = 1;
 			return 1;
 		}
 		nonce++;
