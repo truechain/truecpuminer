@@ -840,7 +840,7 @@ static bool stratum_notify(struct stratum_ctx *sctx, json_t *params)
 	// nbits = json_string_value(json_array_get(params, 5));
 	// ntime = json_string_value(json_array_get(params, 6));	
 	if (!job_id || !seedhash || !headhash ||
-	    strlen(seedhash) != 128 || strlen(headhash) != 64 {
+	    strlen(seedhash) != 128 || strlen(headhash) != 64) {
 		applog(LOG_ERR, "Stratum notify: invalid parameters");
 		goto out;
 	}

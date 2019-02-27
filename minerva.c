@@ -33,6 +33,13 @@ struct miner_result{
     uint8_t result[32];
 };
 
+bool sha3_512(uint8_t *dest,int dlen,uint8_t *data,int len) {
+	if (dest == 0 || dlen != 64 || data == 0 || len < 0) {
+		return false;
+	} 
+	sha3(data,len,dest,dlen);
+	return true;
+}
 int genLookupTable(uint64_t *plookup,int plen, uint32_t *ptable,int tlen) {
     if (plookup == 0 || plen < 10240*32 || ptable == 0 || tlen < TBLSIZE*DATALENGTH*PMTSIZE+DATALENGTH*PMTSIZE+PMTSIZE) {
         return 0;
@@ -230,122 +237,6 @@ void fchainmining(uint64_t *plookup,int plen, uint8_t header[HEADSIZE],uint64_t 
     memcpy(res->result,dgst,32);
 	return;
 }
-
-bool sha3_512(uint8_t *dest,int dlen,uint8_t *data,int len) {
-	if (dest == 0 || dlen != 64 || data == 0 || len < 0) {
-		return false;
-	} 
-	sha3(data,len,dest,dlen);
-	return true;
-}
-
-///////////////////////////////////////////////////////////////////
-bool dataset_hash(uint8_t (&hash)[64],uint8_t *data,int len) {
-	return sha3_512(hash,64,data,len);
-}
-void truehashTableInit(uint64_t *tableLookup,int tlen) {
-	uint32_t table[TBLSIZE * DATALENGTH * PMTSIZE] = {0};
-	int tsize = TBLSIZE * DATALENGTH * PMTSIZE;
-
-	for (int k = 0; k < TBLSIZE; k++) {
-		for (int x = 0; x < DATALENGTH*PMTSIZE; x++) {
-			table[k*DATALENGTH*PMTSIZE+x] = tableOrg[k][x];
-		}
-	}
-	genLookupTable(tableLookup,tlen, table,tsize);
-}
-//UpdateTBL Update dataset information
-uint64_t* updateTBL(int offset[OFF_SKIP_LEN], int skip[OFF_SKIP_LEN], uint64_t *plookupTbl, int plen) {
-
-	uint32_t lktWz = (uint32_t)(DATALENGTH / 64);
-	uint32_t lktSz = (uint32_t)(DATALENGTH) * lktWz;
-
-	for (int k = 0; k < TBLSIZE; k++) {
-
-		uint32_t plkt = (uint32_t)(k) * lktSz;
-
-		for (int x = 0; x < DATALENGTH; x++) {
-			int idx = k*DATALENGTH + x;
-			int pos = offset[idx] + x;
-			int sk = skip[idx];
-			int y = pos - sk*PMTSIZE/2;
-			int c = 0;
-			for (int i = 0; i < PMTSIZE; i++) {
-				if (y >= 0 && y < SKIP_CYCLE_LEN) {
-					uint32_t vI = (uint32_t)(y / 64);
-					uint32_t vR = (uint32_t)(y % 64);
-					plookupTbl[plkt+vI] |= 1 << vR;
-					c = c + 1;
-				}
-				y = y + sk;
-			}
-			if (c == 0) {
-				uint32_t vI = (uint32_t)(x / 64);
-				uint32_t vR = (uint32_t)(x % 64);
-				plookupTbl[plkt+vI] |= 1 << vR;
-			}
-			plkt += lktWz;
-		}
-	}
-	return plookupTbl;
-}
-uint64_t* updateLookupTBL(uint8_t seedhash[OFF_CYCLE_LEN+SKIP_CYCLE_LEN][32],uint64_t *plookupTbl,int plen) {
-	const int offsetCnst = 0x7,skipCnst = 0x3;
-	int offset[OFF_SKIP_LEN] = {0};
-	int skip[OFF_SKIP_LEN] = {0};
-	
-	//get offset cnst  8192 lenght
-	for (int i = 0; i < OFF_CYCLE_LEN; i++) {
-		uint8_t *val = seedhash[i];
-		offset[i*4] = (int)(val[0]) & offsetCnst - 4;
-		offset[i*4+1] = (int)(val[1]) & offsetCnst - 4;
-		offset[i*4+2] = (int)(val[2]) & offsetCnst - 4;
-		offset[i*4+3] = (int)(val[3]) & offsetCnst - 4;
-	}
-
-	//get skip cnst 2048 lenght
-	for (int i = 0; i < SKIP_CYCLE_LEN; i++) {
-		uint8_t *val = seedhash[OFF_CYCLE_LEN + i];
-		for (int k = 0; k < 16; k++) {
-			skip[i*16+k] = (int)(val[k]) & skipCnst + 1;
-		}
-	}
-
-	uint64_t *ds = updateTBL(offset, skip, plookupTbl,plen);
-	return ds;
-}
-
-void truehashFull(uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint64_t nonce,struct miner_result *res){
-
-	return truehash(dataset,dlen, hash, nonce,res);
-}
-inline int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint32_t target[TARGETLEN],
-	uint64_t *nonce,uint64_t max_nonce, uint64_t *hashes_done)
-{	
-	struct miner_result res;
-	uint8_t head[16] = {0};
-	uint64_t first_nonce = *nonce;
-	work_restart[thr_id].stopped = 0;
-
-	do {		
-		truehashFull(dataset,dlen,hash,*nonce,&res);
-		if (!bfruit) {
-			memcpy(head,res.result,16);
-		}else {
-			memcpy(head,res.result+16,16);
-		}
-		if (memcmp(head, target, sizeof(target)) < 0) {
-			*hashes_done = n - first_nonce + 1;
-			work_restart[thr_id].stopped = 1;
-			return 1;
-		}
-		(*nonce)++;
-	} while (*nonce < max_nonce && !work_restart[thr_id].restart);	
-	*hashes_done = *nonce - first_nonce + 1;
-	work_restart[thr_id].stopped = 1;
-	return 0;
-}
-///////////////////////////////////////////////////////////////////
 
 static const uint32_t tableOrg[][8192]  = {
 	{
@@ -2429,3 +2320,115 @@ static const uint32_t tableOrg[][8192]  = {
 		0x7ef, 0xfff, 0xfff, 0xfff, 0x7f0, 0xfff, 0xfff, 0xfff, 0x7f1, 0xfff, 0xfff, 0xfff, 0x7f2, 0xfff, 0xfff, 0xfff, 0x7f3, 0xfff, 0xfff, 0xfff, 0x7f4, 0xfff, 0xfff, 0xfff, 0x7f5, 0xfff, 0xfff, 0xfff, 0x7f6, 0xfff, 0xfff, 0xfff, 0x7f7, 0xfff, 0xfff, 0xfff, 0x7ff, 0xfff, 0xfff, 0xfff, 0x7f9, 0xfff, 0xfff, 0xfff, 0x7fa, 0xfff, 0xfff, 0xfff, 0x7fb, 0xfff, 0xfff, 0xfff, 0x7fc, 0xfff, 0xfff, 0xfff, 0x7fd, 0xfff, 0xfff, 0xfff, 0x7fe, 0xfff, 0xfff, 0xfff,
 	},
 };
+
+///////////////////////////////////////////////////////////////////
+bool dataset_hash(uint8_t hash[64],uint8_t *data,int len) {
+	return sha3_512(hash,64,data,len);
+}
+void truehashTableInit(uint64_t *tableLookup,int tlen) {
+	uint32_t table[TBLSIZE * DATALENGTH * PMTSIZE] = {0};
+	int tsize = TBLSIZE * DATALENGTH * PMTSIZE;
+
+	for (int k = 0; k < TBLSIZE; k++) {
+		for (int x = 0; x < DATALENGTH*PMTSIZE; x++) {
+			table[k*DATALENGTH*PMTSIZE+x] = tableOrg[k][x];
+		}
+	}
+	genLookupTable(tableLookup,tlen, table,tsize);
+}
+//UpdateTBL Update dataset information
+uint64_t* updateTBL(int offset[OFF_SKIP_LEN], int skip[OFF_SKIP_LEN], uint64_t *plookupTbl, int plen) {
+
+	uint32_t lktWz = (uint32_t)(DATALENGTH / 64);
+	uint32_t lktSz = (uint32_t)(DATALENGTH) * lktWz;
+
+	for (int k = 0; k < TBLSIZE; k++) {
+
+		uint32_t plkt = (uint32_t)(k) * lktSz;
+
+		for (int x = 0; x < DATALENGTH; x++) {
+			int idx = k*DATALENGTH + x;
+			int pos = offset[idx] + x;
+			int sk = skip[idx];
+			int y = pos - sk*PMTSIZE/2;
+			int c = 0;
+			for (int i = 0; i < PMTSIZE; i++) {
+				if (y >= 0 && y < SKIP_CYCLE_LEN) {
+					uint32_t vI = (uint32_t)(y / 64);
+					uint32_t vR = (uint32_t)(y % 64);
+					plookupTbl[plkt+vI] |= 1 << vR;
+					c = c + 1;
+				}
+				y = y + sk;
+			}
+			if (c == 0) {
+				uint32_t vI = (uint32_t)(x / 64);
+				uint32_t vR = (uint32_t)(x % 64);
+				plookupTbl[plkt+vI] |= 1 << vR;
+			}
+			plkt += lktWz;
+		}
+	}
+	return plookupTbl;
+}
+uint64_t* updateLookupTBL(uint8_t seedhash[OFF_CYCLE_LEN+SKIP_CYCLE_LEN][32],uint64_t *plookupTbl,int plen) {
+	const int offsetCnst = 0x7,skipCnst = 0x3;
+	int offset[OFF_SKIP_LEN] = {0};
+	int skip[OFF_SKIP_LEN] = {0};
+	
+	//get offset cnst  8192 lenght
+	for (int i = 0; i < OFF_CYCLE_LEN; i++) {
+		uint8_t *val = seedhash[i];
+		offset[i*4] = (int)(val[0]) & offsetCnst - 4;
+		offset[i*4+1] = (int)(val[1]) & offsetCnst - 4;
+		offset[i*4+2] = (int)(val[2]) & offsetCnst - 4;
+		offset[i*4+3] = (int)(val[3]) & offsetCnst - 4;
+	}
+
+	//get skip cnst 2048 lenght
+	for (int i = 0; i < SKIP_CYCLE_LEN; i++) {
+		uint8_t *val = seedhash[OFF_CYCLE_LEN + i];
+		for (int k = 0; k < 16; k++) {
+			skip[i*16+k] = (int)(val[k]) & skipCnst + 1;
+		}
+	}
+
+	uint64_t *ds = updateTBL(offset, skip, plookupTbl,plen);
+	return ds;
+}
+
+void truehashFull(uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint64_t nonce,struct miner_result *res){
+
+	return fchainmining(dataset,dlen, hash, nonce,res);
+}
+inline int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint32_t target[TARGETLEN],
+	uint64_t *nonce,uint64_t max_nonce, uint64_t *hashes_done)
+{	
+	struct miner_result res;
+	uint8_t head[16] = {0};
+	uint64_t first_nonce = *nonce;
+	work_restart[thr_id].stopped = 0;
+
+	do {		
+		truehashFull(dataset,dlen,hash,*nonce,&res);
+		// fruit
+		memcpy(head,res.result,16);
+		if (memcmp(head, target, sizeof(target)) < 0) {
+			*hashes_done = *nonce - first_nonce + 1;
+			work_restart[thr_id].stopped = 1;
+			return 1;
+		}
+		// block
+		memcpy(head,res.result+16,16);
+		if (memcmp(head, target, sizeof(target)) < 0) {
+			*hashes_done = *nonce - first_nonce + 1;
+			work_restart[thr_id].stopped = 1;
+			return 1;
+		}
+		(*nonce)++;
+	} while (*nonce < max_nonce && !work_restart[thr_id].restart);	
+	*hashes_done = *nonce - first_nonce + 1;
+	work_restart[thr_id].stopped = 1;
+	return 0;
+}
+///////////////////////////////////////////////////////////////////

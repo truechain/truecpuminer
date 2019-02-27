@@ -509,7 +509,7 @@ static void *miner_thread(void *userdata)
 			if (!work.submit) {
 				work.submit = submit_work(mythr, &work);
 			}
-			Sleep(1);
+			sleep(1);
 			continue;
 		}
 		work_restart[thr_id].restart = 0;	
