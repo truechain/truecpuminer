@@ -38,7 +38,7 @@
 #include "compat.h"
 #include "miner.h"
 
-#define PROGRAM_NAME		"minerd"
+#define PROGRAM_NAME	"true-minerd"
 #define DEF_RPC_URL		"http://127.0.0.1:9332/"
 #define LP_SCANTIME		60
 
@@ -100,23 +100,9 @@ struct workio_cmd {
 	} u;
 };
 
-enum sha256_algos {
-	ALGO_SCRYPT,		    /* scrypt(1024,1,1) */
-	ALGO_SCRYPT_JANE,		/* scrypt-jane with n-factor */
-	ALGO_SHA256D,		    /* SHA-256d */
-    ALGO_SHA512,            /* SHA-512 */
-};
-
-static const char *algo_names[] = {
-	[ALGO_SCRYPT]		= "scrypt",
-	[ALGO_SCRYPT_JANE]	= "scrypt-jane",
-	[ALGO_SHA256D]		= "sha256d",
-};
-
 bool opt_debug = false;
 bool opt_protocol = false;
 static bool opt_benchmark = false;
-bool want_longpoll = true;
 bool have_longpoll = false;
 bool want_stratum = true;
 bool have_stratum = false;
@@ -129,7 +115,6 @@ int opt_timeout = 270;
 int opt_scantime = 5;
 static json_t *opt_config;
 static const bool opt_time = true;
-static enum sha256_algos opt_algo = ALGO_SCRYPT;
 static int opt_n_threads;
 static int num_processors;
 static char *rpc_url;
@@ -168,10 +153,6 @@ struct option {
 static char const usage[] = "\
 Usage: " PROGRAM_NAME " [OPTIONS]\n\
 Options:\n\
-  -a, --algo=ALGO       specify the algorithm to use\n\
-                          scrypt       scrypt(1024, 1, 1) (default)\n\
-                          scrypt-jane  scrypt-jane\n\
-                          sha256d      SHA-256d\n\
   -o, --url=URL         URL of mining server (default: " DEF_RPC_URL ")\n\
   -O, --userpass=U:P    username:password pair for mining server\n\
   -u, --user=USERNAME   username for mining server\n\
@@ -212,10 +193,9 @@ static char const short_options[] =
 #ifdef HAVE_SYSLOG_H
 	"S"
 #endif
-	"a:c:Dhp:Px:qr:R:s:t:T:o:u:O:V";
+	"c:Dhp:Px:qr:R:s:t:T:o:u:O:V";
 
 static struct option const options[] = {
-	{ "algo", 1, NULL, 'a' },
 #ifndef WIN32
 	{ "background", 0, NULL, 'B' },
 #endif
@@ -224,7 +204,6 @@ static struct option const options[] = {
 	{ "config", 1, NULL, 'c' },
 	{ "debug", 0, NULL, 'D' },
 	{ "help", 0, NULL, 'h' },
-	{ "no-longpoll", 0, NULL, 1003 },
 	{ "no-stratum", 0, NULL, 1007 },
 	{ "pass", 1, NULL, 'p' },
 	{ "protocol-dump", 0, NULL, 'P' },
@@ -246,7 +225,6 @@ static struct option const options[] = {
 };
 
 struct work {
-	uint32_t data[32];
 	uint32_t target[8];
     uint8_t hash[32];
     uint64_t nonce;
@@ -318,30 +296,6 @@ static bool jobj_binary(const json_t *obj, const char *key,void *buf, size_t buf
 	return true;
 }
 
-static bool work_decode(const json_t *val, struct work *work)
-{
-	int i;
-	
-	if (unlikely(!jobj_binary(val, "data", work->data, sizeof(work->data)))) {
-		applog(LOG_ERR, "JSON inval data");
-		goto err_out;
-	}
-	if (unlikely(!jobj_binary(val, "target", work->target, sizeof(work->target)))) {
-		applog(LOG_ERR, "JSON inval target");
-		goto err_out;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(work->data); i++)
-		work->data[i] = le32dec(work->data + i);
-	for (i = 0; i < ARRAY_SIZE(work->target); i++)
-		work->target[i] = le32dec(work->target + i);
-
-	return true;
-
-err_out:
-	return false;
-}
-
 static void share_result(int result, const char *reason)
 {
 	char s[345];
@@ -386,42 +340,6 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 	return true;
 }
 
-static const char *rpc_req =
-	"{\"method\": \"getwork\", \"params\": [], \"id\":0}\r\n";
-
-static bool get_upstream_work(CURL *curl, struct work *work)
-{
-	json_t *val;
-	bool rc;
-	struct timeval tv_start, tv_end, diff;
-
-	gettimeofday(&tv_start, NULL);
-	val = json_rpc_call(curl, rpc_url, rpc_userpass, rpc_req,
-			    want_longpoll, false, NULL);
-	gettimeofday(&tv_end, NULL);
-
-	if (have_stratum) {
-		if (val)
-			json_decref(val);
-		return true;
-	}
-
-	if (!val)
-		return false;
-
-	rc = work_decode(json_object_get(val, "result"), work);
-
-	if (opt_debug && rc) {
-		timeval_subtract(&diff, &tv_end, &tv_start);
-		applog(LOG_DEBUG, "DEBUG: got new work in %d ms",
-		       diff.tv_sec * 1000 + diff.tv_usec / 1000);
-	}
-
-	json_decref(val);
-
-	return rc;
-}
-
 static void workio_cmd_free(struct workio_cmd *wc)
 {
 	if (!wc)
@@ -437,36 +355,6 @@ static void workio_cmd_free(struct workio_cmd *wc)
 
 	memset(wc, 0, sizeof(*wc));	/* poison */
 	free(wc);
-}
-
-static bool workio_get_work(struct workio_cmd *wc, CURL *curl)
-{
-	struct work *ret_work;
-	int failures = 0;
-
-	ret_work = calloc(1, sizeof(*ret_work));
-	if (!ret_work)
-		return false;
-
-	/* obtain new work from bitcoin via JSON-RPC */
-	while (!get_upstream_work(curl, ret_work)) {
-		if (unlikely((opt_retries >= 0) && (++failures > opt_retries))) {
-			applog(LOG_ERR, "json_rpc_call failed, terminating workio thread");
-			free(ret_work);
-			return false;
-		}
-
-		/* pause, then restart work-request loop */
-		applog(LOG_ERR, "json_rpc_call failed, retry after %d seconds",
-			opt_fail_pause);
-		sleep(opt_fail_pause);
-	}
-
-	/* send work to requesting thread */
-	if (!tq_push(wc->thr->q, ret_work))
-		free(ret_work);
-
-	return true;
 }
 
 static bool workio_submit_work(struct workio_cmd *wc, CURL *curl)
@@ -513,9 +401,6 @@ static void *workio_thread(void *userdata)
 
 		/* process workio_cmd */
 		switch (wc->cmd) {
-		case WC_GET_WORK:
-			ok = workio_get_work(wc, curl);
-			break;
 		case WC_SUBMIT_WORK:
 			ok = workio_submit_work(wc, curl);
 			break;
@@ -532,47 +417,6 @@ static void *workio_thread(void *userdata)
 	curl_easy_cleanup(curl);
 
 	return NULL;
-}
-
-static bool get_work(struct thr_info *thr, struct work *work)
-{
-	struct workio_cmd *wc;
-	struct work *work_heap;
-
-	if (opt_benchmark) {
-		memset(work->data, 0x55, 76);
-		work->data[17] = swab32(time(NULL));
-		memset(work->data + 19, 0x00, 52);
-		work->data[20] = 0x80000000;
-		work->data[31] = 0x00000280;
-		memset(work->target, 0x00, sizeof(work->target));
-		return true;
-	}
-
-	/* fill out work request message */
-	wc = calloc(1, sizeof(*wc));
-	if (!wc)
-		return false;
-
-	wc->cmd = WC_GET_WORK;
-	wc->thr = thr;
-
-	/* send work request to workio thread */
-	if (!tq_push(thr_info[work_thr_id].q, wc)) {
-		workio_cmd_free(wc);
-		return false;
-	}
-
-	/* wait for response, a unit of work */
-	work_heap = tq_pop(thr->q, NULL);
-	if (!work_heap)
-		return false;
-
-	/* copy returned work into storage provided by caller */
-	memcpy(work, work_heap, sizeof(*work));
-	free(work_heap);
-
-	return true;
 }
 
 static bool submit_work(struct thr_info *thr, const struct work *work_in)
@@ -617,18 +461,6 @@ static void stratum_gen_work(struct stratum_ctx *sctx, struct work *work)
 	/* Increment extranonce2 */
 	for (int i = 0; i < sctx->xnonce2_size && !++sctx->job.xnonce2[i]; i++);
 	pthread_mutex_unlock(&sctx->work_lock);
-
-	// if (opt_debug) {
-	// 	char *xnonce2str = bin2hex(work->xnonce2, sctx->xnonce2_size);
-	// 	applog(LOG_DEBUG, "DEBUG: job_id='%s' extranonce2=%s ntime=%08x",
-	// 	       work->job_id, xnonce2str, swab32(work->data[17]));
-	// 	free(xnonce2str);
-	// }
-
-	// if (opt_algo == ALGO_SCRYPT_JANE || opt_algo == ALGO_SCRYPT)
-	// 	diff_to_target(work->target, sctx->job.diff / 65536.0);
-	// else
-	// 	diff_to_target(work->target, sctx->job.diff);
 }
 
 static void *miner_thread(void *userdata)
@@ -870,17 +702,6 @@ static void parse_arg (int key, char *arg)
 	int v, i;
 
 	switch(key) {
-	case 'a':
-		for (i = 0; i < ARRAY_SIZE(algo_names); i++) {
-			if (algo_names[i] &&
-			    !strcmp(arg, algo_names[i])) {
-				opt_algo = i;
-				break;
-			}
-		}
-		if (i == ARRAY_SIZE(algo_names))
-			show_usage_and_exit(1);
-		break;
 	case 'B':
 		opt_background = true;
 		break;
@@ -1017,12 +838,8 @@ static void parse_arg (int key, char *arg)
 		break;
 	case 1005:
 		opt_benchmark = true;
-		want_longpoll = false;
 		want_stratum = false;
 		have_stratum = false;
-		break;
-	case 1003:
-		want_longpoll = false;
 		break;
 	case 1007:
 		want_stratum = false;
@@ -1253,9 +1070,8 @@ int main(int argc, char *argv[])
 	}
 
 	applog(LOG_INFO, "%d miner threads started, "
-		"using '%s' algorithm.",
-		opt_n_threads,
-		algo_names[opt_algo]);
+		"using '%s' algorithm=minerva.",
+		opt_n_threads);
 
 	/* main loop - simply wait for workio thread to exit */
 	pthread_join(thr_info[work_thr_id].pth, NULL);

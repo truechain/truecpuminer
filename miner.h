@@ -173,7 +173,6 @@ struct work_restart {
 extern bool opt_debug;
 extern bool opt_protocol;
 extern int opt_timeout;
-extern bool want_longpoll;
 extern bool have_longpoll;
 extern bool want_stratum;
 extern bool have_stratum;
@@ -188,8 +187,6 @@ extern int stratum_thr_id;
 extern struct work_restart *work_restart;
 
 extern void applog(int prio, const char *fmt, ...);
-extern json_t *json_rpc_call(CURL *curl, const char *url, const char *userpass,
-	const char *rpc_req, bool, bool, int *);
 extern char *bin2hex(const unsigned char *p, size_t len);
 extern bool hex2bin(unsigned char *p, const char *hexstr, size_t len);
 extern int timeval_subtract(struct timeval *result, struct timeval *x,
