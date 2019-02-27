@@ -829,7 +829,7 @@ out:
 
 static bool stratum_notify(struct stratum_ctx *sctx, json_t *params)
 {
-	const char *job_id, *seedhash,headhash/*, *version, *nbits, *ntime*/;
+	const char *job_id, *seedhash,*headhash/*, *version, *nbits, *ntime*/;
 	bool clean, ret = false;
 
 	job_id = json_string_value(json_array_get(params, 0));
@@ -951,14 +951,14 @@ static bool stratum_show_message(struct stratum_ctx *sctx, json_t *id, json_t *p
 
 	return ret;
 }
-static bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const char *job_id,unsigned char** seeds)
+bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const char *job_id,unsigned char** seeds)
 {
 	json_t *val = NULL, *res_val, *err_val;
 	char *s, *sret;
 	json_error_t err;
 	bool ret = false;
 
-	s = malloc(80 + strlen(user) + strlen(pass));
+	s = malloc(80 + strlen(user) + strlen(job_id));
 	sprintf(s, "{\"id\": 2, \"method\": \"mining.seedhash\", \"params\": [\"%s\", \"%s\"]}",
 	        user, job_id);
 
@@ -992,7 +992,7 @@ static bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, c
 	const char *seedhash = json_string_value(json_object_get(val,"seedhash"));
 	if (NULL == seedhash) goto out;
 
-	seed_count = json_array_size(res_val);
+	unsigned int seed_count = json_array_size(res_val);
 	for (int i = 0; i < seed_count; i++) {
 		const char *s = json_string_value(json_array_get(res_val, i));
 		if (!s || strlen(s) != 64) {
