@@ -247,7 +247,7 @@ static void init_dataset() {
     }
 }
 static void free_dataset() {
-    if (_ds != 0) {
+    if (_ds.dataset != 0) {
         free(_ds.dataset)
         _ds.dataset = 0;
     } 
@@ -454,8 +454,8 @@ static void stratum_gen_work(struct stratum_ctx *sctx, struct work *work)
 	work->xnonce2_len = sctx->xnonce2_size;
 	memcpy(work->xnonce2, sctx->job.xnonce2, sctx->xnonce2_size);
 	/* make headhash and target*/
-    memcpy(work->hash,sctx->headhash,32);
-    memcpy(work->target,sctx->target,8); 	
+    memcpy(work->hash,sctx->job.headhash,32);
+    memcpy(work->target,sctx->job.target,8); 	
 	/* Increment extranonce2 */
 	for (int i = 0; i < sctx->xnonce2_size && !++sctx->job.xnonce2[i]; i++);
 	pthread_mutex_unlock(&sctx->work_lock);
@@ -520,7 +520,7 @@ static void *miner_thread(void *userdata)
 
 		/* scan nonces for a proof-of-work hash */
 		int rc = scanhash_sha512(thr_id,_ds.dataset,_ds.len,work.hash,work.target,
-                                work.nonce,max_nonce,&hashes_done);
+                                &work.nonce,max_nonce,&hashes_done);
 
 		/* record scanhash elapsed time */
 		gettimeofday(&tv_end, NULL);
@@ -562,9 +562,7 @@ out:
 
 static void restart_threads(void)
 {
-	int i;
-
-	for (i = 0; i < opt_n_threads; i++)
+	for (int i = 0; i < opt_n_threads; i++)
 		work_restart[i].restart = 1;
 }
 

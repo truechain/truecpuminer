@@ -81,8 +81,8 @@ enum {
 #define make_new_seeds(seeds) unsigned char **seeds = malloc((OFF_CYCLE_LEN+SKIP_CYCLE_LEN) * sizeof(unsigned char *));
 
 #define free_seeds(seeds) if(seeds){ for(int i=0;i<OFF_CYCLE_LEN+SKIP_CYCLE_LEN;i++){ \
-						if (seeds[i]) {free(seeds[i]);} } \
-						free(seeds); \
+							if (seeds[i]) {free(seeds[i]);} } \
+							free(seeds); \
 						}
 
 static inline uint32_t swab32(uint32_t v)
@@ -164,8 +164,7 @@ void sha256_init_8way(uint32_t *state);
 void sha256_transform_8way(uint32_t *state, const uint32_t *block, int swap);
 #endif
 
-extern int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint32_t target[TARGETLEN],
-	uint64_t &nonce,uint64_t max_nonce, uint64_t *hashes_done);
+
 
 struct thr_info {
 	int		id;
@@ -255,7 +254,9 @@ bool stratum_handle_method(struct stratum_ctx *sctx, const char *s);
 bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const char *job_id,unsigned char** seeds);
 uint64_t* updateLookupTBL(uint8_t seedhash[OFF_CYCLE_LEN+SKIP_CYCLE_LEN][32],uint64_t *plookupTbl,int plen);
 void truehashTableInit(uint64_t *tableLookup,int tlen);
-bool dataset_hash(uint8_t (&hash)[64],uint8_t *data,int len);
+bool dataset_hash(uint8_t hash[64],uint8_t *data,int len);
+int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint32_t target[TARGETLEN],
+				uint64_t *nonce,uint64_t max_nonce, uint64_t *hashes_done);
 
 struct thread_q;
 

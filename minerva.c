@@ -320,15 +320,15 @@ void truehashFull(uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint64_t no
 	return truehash(dataset,dlen, hash, nonce,res);
 }
 inline int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint32_t target[TARGETLEN],
-	uint64_t &nonce,uint64_t max_nonce, uint64_t *hashes_done)
+	uint64_t *nonce,uint64_t max_nonce, uint64_t *hashes_done)
 {	
 	struct miner_result res;
 	uint8_t head[16] = {0};
-	uint64_t first_nonce = nonce;
+	uint64_t first_nonce = *nonce;
 	work_restart[thr_id].stopped = 0;
 
 	do {		
-		truehashFull(dataset,dlen,hash,nonce,&res);
+		truehashFull(dataset,dlen,hash,*nonce,&res);
 		if (!bfruit) {
 			memcpy(head,res.result,16);
 		}else {
@@ -339,9 +339,9 @@ inline int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t 
 			work_restart[thr_id].stopped = 1;
 			return 1;
 		}
-		nonce++;
-	} while (nonce < max_nonce && !work_restart[thr_id].restart);	
-	*hashes_done = nonce - first_nonce + 1;
+		(*nonce)++;
+	} while (*nonce < max_nonce && !work_restart[thr_id].restart);	
+	*hashes_done = *nonce - first_nonce + 1;
 	work_restart[thr_id].stopped = 1;
 	return 0;
 }
