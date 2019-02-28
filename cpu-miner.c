@@ -110,7 +110,6 @@ static bool opt_quiet = false;
 static int opt_retries = -1;
 static int opt_fail_pause = 30;
 int opt_timeout = 270;
-int opt_scantime = 5;
 static json_t *opt_config;
 static const bool opt_time = true;
 static int opt_n_threads;
@@ -135,7 +134,7 @@ static unsigned long accepted_count = 0L;
 static unsigned long rejected_count = 0L;
 double *thr_hashrates;
 static struct true_dataset _ds;
-static bool miner_running = true;
+static bool running = true;
 
 #ifdef HAVE_GETOPT_LONG
 #include <getopt.h>
@@ -162,10 +161,7 @@ Options:\n\
                           (default: retry indefinitely)\n\
   -R, --retry-pause=N   time to pause between retries, in seconds (default: 30)\n\
   -T, --timeout=N       network timeout, in seconds (default: 270)\n\
-  -s, --scantime=N      upper bound on time spent scanning current work when\n\
-                          long polling is unavailable, in seconds (default: 5)\n\
-      --no-longpoll     disable X-Long-Polling support\n\
-      --no-stratum      disable X-Stratum support\n\
+      --no-stratum      disable X-Stratum support(no)\n\
   -q, --quiet           disable per-thread hashmeter output\n\
   -D, --debug           enable debug output\n\
   -P, --protocol-dump   verbose dump of protocol-level activities\n"
@@ -209,7 +205,6 @@ static struct option const options[] = {
 	{ "quiet", 0, NULL, 'q' },
 	{ "retries", 1, NULL, 'r' },
 	{ "retry-pause", 1, NULL, 'R' },
-	{ "scantime", 1, NULL, 's' },
 #ifdef HAVE_SYSLOG_H
 	{ "syslog", 0, NULL, 'S' },
 #endif
@@ -387,7 +382,7 @@ static void *workio_thread(void *userdata)
 		return NULL;
 	}
 
-	while (ok) {
+	while (running & ok) {
 		struct workio_cmd *wc;
 
 		/* wait for workio_cmd sent to us, on our queue */
@@ -491,7 +486,7 @@ static void *miner_thread(void *userdata)
 		affine_to_cpu(thr_id, thr_id % num_processors);
 	}
 	
-	while (miner_running) {
+	while (running) {
 		uint64_t hashes_done;
 		struct timeval tv_start, tv_end, diff;
 
@@ -606,7 +601,7 @@ static void *stratum_thread(void *userdata)
 		goto out;
 	applog(LOG_INFO, "Starting Stratum on %s", stratum.url);
 
-	while (1) {
+	while (running) {
 		int failures = 0;
 
 		while (!stratum.curl) {
@@ -740,12 +735,6 @@ static void parse_arg (int key, char *arg)
 		if (v < 1 || v > 9999)	/* sanity check */
 			show_usage_and_exit(1);
 		opt_fail_pause = v;
-		break;
-	case 's':
-		v = atoi(arg);
-		if (v < 1 || v > 9999)	/* sanity check */
-			show_usage_and_exit(1);
-		opt_scantime = v;
 		break;
 	case 'T':
 		v = atoi(arg);
@@ -917,12 +906,10 @@ void signal_handler(int sig)
 		break;
 	case SIGINT:
 		applog(LOG_INFO, "SIGINT received, exiting");
-		miner_running = false;
 		exit(0);
 		break;
 	case SIGTERM:
 		applog(LOG_INFO, "SIGTERM received, exiting");
-		miner_running = false;
 		exit(0);
 		break;
 	}
@@ -1071,7 +1058,7 @@ int main(int argc, char *argv[])
 
 	/* main loop - simply wait for workio thread to exit */
 	pthread_join(thr_info[work_thr_id].pth, NULL);
-
+	running = false;
 	applog(LOG_INFO, "workio thread dead, exiting.");
     free_dataset();
 	return 0;

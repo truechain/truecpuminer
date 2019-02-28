@@ -144,7 +144,10 @@ static inline void le32enc(void *pp, uint32_t x)
 #define JSON_LOADS(str, err_ptr) json_loads((str), (err_ptr))
 #endif
 
-#define USER_AGENT PACKAGE_NAME "/" PACKAGE_VERSION
+#define PROTOCOL_NAME 		"TrueStratum" 
+#define PROTOCOL_VERSION 	"0.1.0" 
+#define USER_AGENT 		PACKAGE_NAME "/" PACKAGE_VERSION
+#define STRATUM_AGETN   PROTOCOL_NAME "/" PROTOCOL_VERSION
 
 void sha256_init(uint32_t *state);
 void sha256_transform(uint32_t *state, const uint32_t *block, int swap);
@@ -227,6 +230,7 @@ struct stratum_ctx {
 	pthread_mutex_t sock_lock;
 
 	double next_diff;
+	unsigned char next_target[8];
 
 	char *session_id;
 	size_t xnonce1_size;

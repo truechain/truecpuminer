@@ -1,7 +1,4 @@
 /*
- * Copyright 2010 Jeff Garzik
- * Copyright 2012-2013 pooler
- *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the Free
  * Software Foundation; either version 2 of the License, or (at your option)
@@ -129,8 +126,7 @@ static void databuf_free(struct data_buffer *db)
 	memset(db, 0, sizeof(*db));
 }
 
-static size_t all_data_cb(const void *ptr, size_t size, size_t nmemb,
-			  void *user_data)
+static size_t all_data_cb(const void *ptr, size_t size, size_t nmemb,void *user_data)
 {
 	struct data_buffer *db = user_data;
 	size_t len = size * nmemb;
@@ -153,8 +149,7 @@ static size_t all_data_cb(const void *ptr, size_t size, size_t nmemb,
 	return len;
 }
 
-static size_t upload_data_cb(void *ptr, size_t size, size_t nmemb,
-			     void *user_data)
+static size_t upload_data_cb(void *ptr, size_t size, size_t nmemb,void *user_data)
 {
 	struct upload_buffer *ub = user_data;
 	int len = size * nmemb;
@@ -251,8 +246,7 @@ out:
 }
 
 #if LIBCURL_VERSION_NUM >= 0x070f06
-static int sockopt_keepalive_cb(void *userdata, curl_socket_t fd,
-	curlsocktype purpose)
+static int sockopt_keepalive_cb(void *userdata, curl_socket_t fd,curlsocktype purpose)
 {
 	int keepalive = 1;
 	int tcp_keepcnt = 3;
@@ -337,8 +331,7 @@ bool hex2bin(unsigned char *p, const char *hexstr, size_t len)
 /* Subtract the `struct timeval' values X and Y,
    storing the result in RESULT.
    Return 1 if the difference is negative, otherwise 0.  */
-int timeval_subtract(struct timeval *result, struct timeval *x,
-	struct timeval *y)
+int timeval_subtract(struct timeval *result, struct timeval *x,struct timeval *y)
 {
 	/* Perform the carry for the later subtraction by updating Y. */
 	if (x->tv_usec < y->tv_usec) {
@@ -656,47 +649,21 @@ void stratum_disconnect(struct stratum_ctx *sctx)
 	pthread_mutex_unlock(&sctx->sock_lock);
 }
 
-static const char *get_stratum_session_id(json_t *val)
-{
-	json_t *arr_val;
-	int i, n;
-
-	arr_val = json_array_get(val, 0);
-	if (!arr_val || !json_is_array(arr_val))
-		return NULL;
-	n = json_array_size(arr_val);
-	for (i = 0; i < n; i++) {
-		const char *notify;
-		json_t *arr = json_array_get(arr_val, i);
-
-		if (!arr || !json_is_array(arr))
-			break;
-		notify = json_string_value(json_array_get(arr, 0));
-		if (!notify)
-			continue;
-		if (!strcasecmp(notify, "mining.notify"))
-			return json_string_value(json_array_get(arr, 1));
-	}
-	return NULL;
-}
-
 bool stratum_subscribe(struct stratum_ctx *sctx)
 {
 	char *s, *sret = NULL;
-	const char *sid, *xnonce1;
+	const char *sid, *xnonce1,*notify,*stratum_agent;
 	int xn2_size;
-	json_t *val = NULL, *res_val, *err_val;
+	json_t *val = NULL, *res_val, *err_val, *arr_val;
 	json_error_t err;
 	bool ret = false, retry = false;
 
 start:
-	s = malloc(128 + (sctx->session_id ? strlen(sctx->session_id) : 0));
-	if (retry)
-		sprintf(s, "{\"id\": 1, \"method\": \"mining.subscribe\", \"params\": []}");
-	else if (sctx->session_id)
-		sprintf(s, "{\"id\": 1, \"method\": \"mining.subscribe\", \"params\": [\"" USER_AGENT "\", \"%s\"]}", sctx->session_id);
+	s = malloc(256 + (sctx->session_id ? strlen(sctx->session_id) : 0));
+	if (sctx->session_id)
+		sprintf(s, "{\"id\": 1, \"method\": \"mining.subscribe\", \"params\": [\"" USER_AGENT "\",\"" STRATUM_AGETN "\", \"%s\"]}", sctx->session_id);
 	else
-		sprintf(s, "{\"id\": 1, \"method\": \"mining.subscribe\", \"params\": [\"" USER_AGENT "\"]}");
+		sprintf(s, "{\"id\": 1, \"method\": \"mining.subscribe\", \"params\": [\"" USER_AGENT "\",\"" STRATUM_AGETN "\"]}");
 
 	if (!stratum_send_line(sctx, s))
 		goto out;
@@ -719,9 +686,9 @@ start:
 
 	res_val = json_object_get(val, "result");
 	err_val = json_object_get(val, "error");
-
-	if (!res_val || json_is_null(res_val) ||
-	    (err_val && !json_is_null(err_val))) {
+	arr_val = json_array_get(res_val, 0);
+	if (!res_val || json_is_null(res_val) || (err_val && !json_is_null(err_val)) ||
+		(!arr_val && !json_is_array(arr_val))) {
 		if (opt_debug || retry) {
 			free(s);
 			if (err_val)
@@ -733,9 +700,14 @@ start:
 		goto out;
 	}
 
-	sid = get_stratum_session_id(res_val);
-	if (opt_debug && !sid)
-		applog(LOG_DEBUG, "Failed to get Stratum session id");
+	notify = json_string_value(json_array_get(arr_val, 0));
+	sid = json_string_value(json_array_get(arr_val, 1));
+	stratum_agent = json_string_value(json_array_get(arr_val, 2));
+
+	if (!notify || !strcasecmp(notify, "mining.notify") || !sid || !stratum_agent) {
+		applog(LOG_ERR, "Failed to get notify,session id");
+		goto out;
+	}
 	xnonce1 = json_string_value(json_array_get(res_val, 1));
 	if (!xnonce1) {
 		applog(LOG_ERR, "Failed to get extranonce1");
@@ -750,7 +722,7 @@ start:
 	pthread_mutex_lock(&sctx->work_lock);
 	free(sctx->session_id);
 	free(sctx->xnonce1);
-	sctx->session_id = sid ? strdup(sid) : NULL;
+	sctx->session_id = strdup(sid);
 	sctx->xnonce1_size = strlen(xnonce1) / 2;
 	sctx->xnonce1 = malloc(sctx->xnonce1_size);
 	hex2bin(sctx->xnonce1, xnonce1, sctx->xnonce1_size);
@@ -851,7 +823,8 @@ static bool stratum_notify(struct stratum_ctx *sctx, json_t *params)
 	hex2bin(sctx->job.seedhash, seedhash, 32);
 	hex2bin(sctx->job.headhash, headhash, 32);
 	sctx->job.clean = clean;
-	sctx->job.diff = sctx->next_diff;
+	memcpy(sctx->job.target,sctx->next_target,8);
+	//sctx->job.diff = sctx->next_diff;
 	// hex2bin(sctx->job.version, version, 4);
 	// hex2bin(sctx->job.nbits, nbits, 4);
 	// hex2bin(sctx->job.ntime, ntime, 4);
@@ -864,18 +837,24 @@ out:
 
 static bool stratum_set_difficulty(struct stratum_ctx *sctx, json_t *params)
 {
-	double diff;
-
-	diff = json_number_value(json_array_get(params, 0));
-	if (diff == 0)
+	// double diff;
+	// diff = json_number_value(json_array_get(params, 0));
+	// if (diff == 0)
+	// 	return false;
+	// pthread_mutex_lock(&sctx->work_lock);
+	// sctx->next_diff = diff;
+	// pthread_mutex_unlock(&sctx->work_lock);
+	const char* target = json_string_value(json_array_get(params, 0));
+	if (!target || strlen(target) != 16) {
+		applog(LOG_ERR, "Stratum set_difficulty: invalid parameters");
 		return false;
-
+	}
 	pthread_mutex_lock(&sctx->work_lock);
-	sctx->next_diff = diff;
+	hex2bin(sctx->next_target, target, 16);
 	pthread_mutex_unlock(&sctx->work_lock);
 
 	if (opt_debug)
-		applog(LOG_DEBUG, "Stratum difficulty set to %g", diff);
+		applog(LOG_DEBUG, "Stratum target set to %s", target);
 
 	return true;
 }
