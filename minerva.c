@@ -14,10 +14,10 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the truechain-engineering-code library. If not, see <http://www.gnu.org/licenses/>.
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
+// #include <stdint.h>
+// #include <stdbool.h>
+// #include <stdlib.h>
+// #include <string.h>
 #include "sha3.h"
 #include "miner.h"
 

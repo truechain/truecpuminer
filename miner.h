@@ -5,19 +5,39 @@
 
 #include <stdbool.h>
 #include <stdint.h>
-#include <sys/time.h>
-#include <pthread.h>
-#include <jansson.h>
-#include <curl/curl.h>
-
-#ifdef STDC_HEADERS
+#include <stdio.h>
 # include <stdlib.h>
 # include <stddef.h>
+#include <ctype.h>
+#include <stdarg.h>
+#include <string.h>
+
+#include <jansson.h>
+#include <curl/curl.h>
+#include <time.h>
+
+#ifdef WIN32
+#include <windows.h>
+#include <winsock2.h>
+#include <mstcpip.h>
 #else
-# ifdef HAVE_STDLIB_H
-#  include <stdlib.h>
-# endif
+#include <errno.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <signal.h>
+#include <sys/resource.h>
+#if HAVE_SYS_SYSCTL_H
+#include <sys/types.h>
+#if HAVE_SYS_PARAM_H
+#include <sys/param.h>
 #endif
+#include <sys/sysctl.h>
+#endif
+#include <pthread.h>
+#endif
+
+
 #ifdef HAVE_ALLOCA_H
 # include <alloca.h>
 #elif !defined alloca
@@ -48,6 +68,24 @@ enum {
 };
 #endif
 
+#ifdef WIN32
+static inline void sleep(int secs)
+{
+	Sleep(secs * 1000);
+}
+
+enum {
+	PRIO_PROCESS		= 0,
+};
+
+static inline int setpriority(int which, int who, int prio)
+{
+	return -!SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_IDLE);
+}
+#endif
+
+
+
 #undef unlikely
 #undef likely
 #if defined(__GNUC__) && (__GNUC__ > 2) && defined(__OPTIMIZE__)
@@ -61,6 +99,54 @@ enum {
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 #endif
+
+#ifdef __linux /* Linux specific policy and affinity management */
+#include <sched.h>
+static inline void drop_policy(void)
+{
+	struct sched_param param;
+
+#ifdef SCHED_IDLE
+	if (unlikely(sched_setscheduler(0, SCHED_IDLE, &param) == -1))
+#endif
+#ifdef SCHED_BATCH
+		sched_setscheduler(0, SCHED_BATCH, &param);
+#endif
+}
+
+static inline void affine_to_cpu(int id, int cpu)
+{
+	cpu_set_t set;
+
+	CPU_ZERO(&set);
+	CPU_SET(cpu, &set);
+	sched_setaffinity(0, sizeof(&set), &set);
+}
+#elif defined(__FreeBSD__) /* FreeBSD specific policy and affinity management */
+#include <sys/cpuset.h>
+static inline void drop_policy(void)
+{
+}
+
+static inline void affine_to_cpu(int id, int cpu)
+{
+	cpuset_t set;
+	CPU_ZERO(&set);
+	CPU_SET(cpu, &set);
+	cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_CPUSET, -1, sizeof(cpuset_t), &set);
+}
+#else
+static inline void drop_policy(void)
+{
+}
+
+static inline void affine_to_cpu(int id, int cpu)
+{
+}
+#endif
+
+
+
 
 #define DATALENGTH  2048	 //2048 520
 #define PMTSIZE  4

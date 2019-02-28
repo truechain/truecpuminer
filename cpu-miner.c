@@ -9,81 +9,13 @@
 #include "cpuminer-config.h"
 #define _GNU_SOURCE
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <unistd.h>
-#include <sys/time.h>
-#include <time.h>
-#ifdef WIN32
-#include <windows.h>
-#else
-#include <errno.h>
-#include <signal.h>
-#include <sys/resource.h>
-#if HAVE_SYS_SYSCTL_H
-#include <sys/types.h>
-#if HAVE_SYS_PARAM_H
-#include <sys/param.h>
-#endif
-#include <sys/sysctl.h>
-#endif
-#endif
-#include <jansson.h>
-#include <curl/curl.h>
-#include "compat.h"
 #include "miner.h"
 
 #define PROGRAM_NAME	"true-minerd"
 #define DEF_RPC_URL		"http://127.0.0.1:9332/"
 #define LP_SCANTIME		60
 
-#ifdef __linux /* Linux specific policy and affinity management */
-#include <sched.h>
-static inline void drop_policy(void)
-{
-	struct sched_param param;
 
-#ifdef SCHED_IDLE
-	if (unlikely(sched_setscheduler(0, SCHED_IDLE, &param) == -1))
-#endif
-#ifdef SCHED_BATCH
-		sched_setscheduler(0, SCHED_BATCH, &param);
-#endif
-}
-
-static inline void affine_to_cpu(int id, int cpu)
-{
-	cpu_set_t set;
-
-	CPU_ZERO(&set);
-	CPU_SET(cpu, &set);
-	sched_setaffinity(0, sizeof(&set), &set);
-}
-#elif defined(__FreeBSD__) /* FreeBSD specific policy and affinity management */
-#include <sys/cpuset.h>
-static inline void drop_policy(void)
-{
-}
-
-static inline void affine_to_cpu(int id, int cpu)
-{
-	cpuset_t set;
-	CPU_ZERO(&set);
-	CPU_SET(cpu, &set);
-	cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_CPUSET, -1, sizeof(cpuset_t), &set);
-}
-#else
-static inline void drop_policy(void)
-{
-}
-
-static inline void affine_to_cpu(int id, int cpu)
-{
-}
-#endif
 		
 enum workio_commands {
 	WC_GET_WORK,
