@@ -41,7 +41,7 @@ bool sha3_512(uint8_t *dest,int dlen,uint8_t *data,int len) {
 	return true;
 }
 int genLookupTable(uint64_t *plookup,int plen, uint32_t *ptable,int tlen) {
-    if (plookup == 0 || plen < 10240*32 || ptable == 0 || tlen < TBLSIZE*DATALENGTH*PMTSIZE+DATALENGTH*PMTSIZE+PMTSIZE) {
+    if (plookup == 0 || plen < 10240*32 || ptable == 0 || tlen < TBLSIZE*DATALENGTH*PMTSIZE) {
         return 0;
     }
 	uint32_t lktWz = (uint32_t)(DATALENGTH / 64);
