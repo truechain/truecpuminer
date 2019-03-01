@@ -985,8 +985,7 @@ int main(int argc, char *argv[])
 	}
 
 	applog(LOG_INFO, "%d miner threads started, "
-		"using '%s' algorithm=minerva.",
-		opt_n_threads);
+		"using algorithm=minerva.",opt_n_threads);
 
 	/* main loop - simply wait for workio thread to exit */
 	pthread_join(thr_info[work_thr_id].pth, NULL);
