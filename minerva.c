@@ -2322,8 +2322,18 @@ static const uint32_t tableOrg[][8192]  = {
 };
 
 ///////////////////////////////////////////////////////////////////
-bool dataset_hash(uint8_t hash[64],uint8_t *data,int len) {
-	return sha3_512(hash,64,data,len);
+bool dataset_hash(uint8_t hash[64], uint64_t *data,int len) {
+	int data_len = len * sizeof(uint64_t);
+	unsigned char *datas = calloc(data_len, 1);
+	if (!datas) {
+		return false;
+	}
+	for (int i = 0; i < len; i++) {
+		memcpy(datas + sizeof(uint64_t)*i, data + i, sizeof(uint64_t));
+	}
+	bool ret = sha3_512(hash,64,data, data_len);
+	free(datas);
+	return ret;
 }
 void truehashTableInit(uint64_t *tableLookup,int tlen) {
 	uint32_t table[TBLSIZE * DATALENGTH * PMTSIZE] = {0};
