@@ -35,7 +35,7 @@ bool opt_protocol = false;
 static bool opt_benchmark = false;
 bool have_longpoll = false;
 bool want_stratum = true;
-bool have_stratum = false;
+bool have_stratum = true;
 bool use_syslog = false;
 static bool opt_background = false;
 static bool opt_quiet = false;
@@ -307,13 +307,14 @@ static void *workio_thread(void *userdata)
 	struct thr_info *mythr = userdata;
 	CURL *curl;
 	bool ok = true;
+	applog(LOG_INFO, "workio_thread start");
 
 	curl = curl_easy_init();
 	if (unlikely(!curl)) {
 		applog(LOG_ERR, "CURL initialization failed");
 		return NULL;
 	}
-
+	
 	while (running & ok) {
 		struct workio_cmd *wc;
 
