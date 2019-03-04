@@ -745,7 +745,7 @@ static bool stratum_notify(struct stratum_ctx *sctx, json_t *params)
 	hex2bin(sctx->job.seedhash, seedhash, 32);
 	hex2bin(sctx->job.headhash, headhash, 32);
 	sctx->job.clean = clean;
-	memcpy(sctx->job.target,sctx->next_target,8);
+	memcpy(sctx->job.target,sctx->next_target,TARGETLEN);
 	//sctx->job.diff = sctx->next_diff;
 	// hex2bin(sctx->job.version, version, 4);
 	// hex2bin(sctx->job.nbits, nbits, 4);
@@ -767,12 +767,12 @@ static bool stratum_set_difficulty(struct stratum_ctx *sctx, json_t *params)
 	// sctx->next_diff = diff;
 	// pthread_mutex_unlock(&sctx->work_lock);
 	const char* target = json_string_value(json_array_get(params, 0));
-	if (!target || strlen(target) != 16) {
+	if (!target || strlen(target) != 32) {
 		applog(LOG_ERR, "Stratum set_difficulty: invalid parameters");
 		return false;
 	}
 	pthread_mutex_lock(&sctx->work_lock);
-	hex2bin(sctx->next_target, target, 16);
+	hex2bin(sctx->next_target, target, 32);
 	pthread_mutex_unlock(&sctx->work_lock);
 
 	if (opt_debug)

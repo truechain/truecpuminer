@@ -295,7 +295,7 @@ struct stratum_job {
 	char *job_id;
 	unsigned char seedhash[64];
 	unsigned char headhash[32];
-	unsigned char target[8];
+	unsigned char target[TARGETLEN];
 	unsigned char *xnonce2;
 	unsigned char version[4];
 	unsigned char nbits[4];
@@ -316,7 +316,7 @@ struct stratum_ctx {
 	pthread_mutex_t sock_lock;
 
 	double next_diff;
-	unsigned char next_target[8];
+	unsigned char next_target[TARGETLEN];
 
 	char *session_id;
 	size_t xnonce1_size;

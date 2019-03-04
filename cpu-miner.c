@@ -150,7 +150,7 @@ static struct option const options[] = {
 };
 
 struct work {
-	uint8_t target[8];
+	uint8_t target[TARGETLEN];
     uint8_t hash[32];
     uint64_t nonce;
 
@@ -383,7 +383,7 @@ static void stratum_gen_work(struct stratum_ctx *sctx, struct work *work)
 	memcpy(work->xnonce2, sctx->job.xnonce2, sctx->xnonce2_size);
 	/* make headhash and target*/
     memcpy(work->hash,sctx->job.headhash,32);
-    memcpy(work->target,sctx->job.target,8); 	
+    memcpy(work->target,sctx->job.target,TARGETLEN); 	
 	/* Increment extranonce2 */
 	for (int i = 0; i < sctx->xnonce2_size && !++sctx->job.xnonce2[i]; i++);
 	pthread_mutex_unlock(&sctx->work_lock);
