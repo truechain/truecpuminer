@@ -2411,7 +2411,7 @@ void truehashFull(uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint64_t no
 
 	return fchainmining(dataset,dlen, hash, nonce,res);
 }
-inline int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint32_t target[TARGETLEN],
+inline int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint8_t target[TARGETLEN],
 	uint64_t *nonce,uint64_t max_nonce, uint64_t *hashes_done)
 {	
 	struct miner_result res;
