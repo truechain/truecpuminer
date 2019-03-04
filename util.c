@@ -106,7 +106,7 @@ static void databuf_free(struct data_buffer *db)
 
 static size_t all_data_cb(const void *ptr, size_t size, size_t nmemb,void *user_data)
 {
-	struct data_buffer *db = user_data;
+	struct data_buffer *db = (struct data_buffer*)user_data;
 	size_t len = size * nmemb;
 	size_t oldlen, newlen;
 	void *newmem;
@@ -121,8 +121,8 @@ static size_t all_data_cb(const void *ptr, size_t size, size_t nmemb,void *user_
 
 	db->buf = newmem;
 	db->len = newlen;
-	memcpy(db->buf + oldlen, ptr, len);
-	memcpy(db->buf + newlen, &zero, 1);	/* null terminate */
+	memcpy((unsigned char*)db->buf + oldlen, ptr, len);
+	memcpy((unsigned char*)db->buf + newlen, &zero, 1);	/* null terminate */
 
 	return len;
 }
@@ -136,7 +136,7 @@ static size_t upload_data_cb(void *ptr, size_t size, size_t nmemb,void *user_dat
 		len = ub->len - ub->pos;
 
 	if (len) {
-		memcpy(ptr, ub->buf + ub->pos, len);
+		memcpy(ptr, (unsigned char*)ub->buf + ub->pos, len);
 		ub->pos += len;
 	}
 
@@ -181,13 +181,13 @@ static size_t resp_hdr_cb(void *ptr, size_t size, size_t nmemb, void *user_data)
 	tmp = memchr(ptr, ':', ptrlen);
 	if (!tmp || (tmp == ptr))	/* skip empty keys / blanks */
 		goto out;
-	slen = tmp - ptr;
+	slen = (unsigned char*)tmp - (unsigned char*)ptr;
 	if ((slen + 1) == ptrlen)	/* skip key w/ no value */
 		goto out;
 	memcpy(key, ptr, slen);		/* store & nul term key */
 	key[slen] = 0;
 
-	rem = ptr + slen + 1;		/* trim value's leading whitespace */
+	rem = (unsigned char*)ptr + slen + 1;		/* trim value's leading whitespace */
 	remlen = ptrlen - slen - 1;
 	while ((remlen > 0) && (isspace(*rem))) {
 		remlen--;
@@ -982,11 +982,22 @@ void tq_free(struct thread_q *tq)
 
 	if (!tq)
 		return;
+#ifdef WIN32
+	ent = list_entry((&tq->q)->next, struct tq_ent, q_node);
+	iter = list_entry(ent->q_node.next, struct tq_ent, q_node);
 
+	for (; &ent->q_node != (&tq->q);
+		ent = iter, iter = list_entry(iter->q_node.next, struct tq_ent, q_node)) {
+
+		list_del(&ent->q_node);
+		free(ent);
+	}
+#else
 	list_for_each_entry_safe(ent, iter, &tq->q, q_node) {
 		list_del(&ent->q_node);
 		free(ent);
 	}
+#endif
 
 	pthread_cond_destroy(&tq->cond);
 	pthread_mutex_destroy(&tq->mutex);
