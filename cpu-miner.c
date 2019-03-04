@@ -150,7 +150,7 @@ static struct option const options[] = {
 };
 
 struct work {
-	uint32_t target[8];
+	uint8_t target[8];
     uint8_t hash[32];
     uint64_t nonce;
 

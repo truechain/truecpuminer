@@ -332,62 +332,6 @@ int timeval_subtract(struct timeval *result, struct timeval *x,struct timeval *y
 	return x->tv_sec < y->tv_sec;
 }
 
-bool fulltest(const uint32_t *hash, const uint32_t *target)
-{
-	int i;
-	bool rc = true;
-	
-	for (i = 7; i >= 0; i--) {
-		if (hash[i] > target[i]) {
-			rc = false;
-			break;
-		}
-		if (hash[i] < target[i]) {
-			rc = true;
-			break;
-		}
-	}
-
-	if (opt_debug) {
-		uint32_t hash_be[32], target_be[32];
-		char *hash_str, *target_str;
-		
-		for (i = 0; i < 8; i++) {
-			be32enc(hash_be + i, hash[7 - i]);
-			be32enc(target_be + i, target[7 - i]);
-		}
-		hash_str = bin2hex((unsigned char *)hash_be, 32);
-		target_str = bin2hex((unsigned char *)target_be, 32);
-
-		applog(LOG_DEBUG, "DEBUG: %s\nHash:   %s\nTarget: %s",
-			rc ? "hash <= target"
-			   : "hash > target (false positive)",
-			hash_str,
-			target_str);
-
-		free(hash_str);
-		free(target_str);
-	}
-
-	return rc;
-}
-
-void diff_to_target(uint32_t *target, double diff)
-{
-	uint64_t m;
-	int k;
-	
-	for (k = 6; k > 0 && diff > 1.0; k--)
-		diff /= 4294967296.0;
-	m = 4294901760.0 / diff;
-	if (m == 0 && k == 6)
-		memset(target, 0xff, 32);
-	else {
-		memset(target, 0, 32);
-		target[k] = (uint32_t)m;
-		target[k + 1] = (uint32_t)(m >> 32);
-	}
-}
 
 #ifdef WIN32
 #define socket_blocks() (WSAGetLastError() == WSAEWOULDBLOCK)
