@@ -69,7 +69,11 @@ static struct true_dataset _ds;
 static bool running = true;
 
 #ifdef HAVE_GETOPT_LONG
+#ifdef WIN32
+#include "getopt.h"
+#else
 #include <getopt.h>
+#endif
 #else
 struct option {
 	const char *name;
@@ -199,6 +203,11 @@ static bool wait_stop_use_dataset() {
 static void update_use_dataset() {
     for (int i = 0; i < opt_n_threads; i++)
 		work_restart[i].stopped = 0;
+}
+inline void restart_threads(void)
+{
+	for (int i = 0; i < opt_n_threads; i++)
+		work_restart[i].restart = 1;
 }
 static bool jobj_binary(const json_t *obj, const char *key,void *buf, size_t buflen)
 {
@@ -486,12 +495,6 @@ static void *miner_thread(void *userdata)
 out:
 	tq_freeze(mythr->q);
 	return NULL;
-}
-
-inline void restart_threads(void)
-{
-	for (int i = 0; i < opt_n_threads; i++)
-		work_restart[i].restart = 1;
 }
 
 static bool stratum_handle_response(char *buf)
@@ -867,6 +870,8 @@ int main(int argc, char *argv[])
 	pthread_mutex_init(&g_work_lock, NULL);
 	pthread_mutex_init(&stratum.sock_lock, NULL);
 	pthread_mutex_init(&stratum.work_lock, NULL);
+
+	applog(LOG_INFO, "true-miner start...");
 
 	flags = strncmp(rpc_url, "https:", 6)
 	      ? (CURL_GLOBAL_ALL & ~CURL_GLOBAL_SSL)

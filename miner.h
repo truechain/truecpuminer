@@ -6,20 +6,27 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
-# include <stdlib.h>
-# include <stddef.h>
-//#include <ctype.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <stddef.h>
 #include <stdarg.h>
 #include <string.h>
-
-#include <jansson.h>
 #include <curl/curl.h>
+#include <jansson.h>
+
+#ifdef WIN32
+#define HAVE_STRUCT_TIMESPEC
+#endif
 #include <time.h>
+#include <pthread.h>
+
 
 #ifdef WIN32
 #include <windows.h>
 #include <winsock2.h>
 #include <mstcpip.h>
+#define inline _inline
+#pragma warning(disable : 4996)
 #else
 #include <errno.h>
 #include <sys/socket.h>
@@ -34,7 +41,7 @@
 #endif
 #include <sys/sysctl.h>
 #endif
-#include <pthread.h>
+
 #endif
 
 
@@ -84,6 +91,30 @@ static inline int setpriority(int which, int who, int prio)
 {
 	return -!SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_IDLE);
 }
+static inline int gettimeofday(struct timeval *tp, void *tzp)
+{
+	time_t clock;
+	struct tm tm;
+	SYSTEMTIME wtm;
+	GetLocalTime(&wtm);
+	tm.tm_year = wtm.wYear - 1900;
+	tm.tm_mon = wtm.wMonth - 1;
+	tm.tm_mday = wtm.wDay;
+	tm.tm_hour = wtm.wHour;
+	tm.tm_min = wtm.wMinute;
+	tm.tm_sec = wtm.wSecond;
+	tm.tm_isdst = -1;
+	clock = mktime(&tm);
+	tp->tv_sec = clock;
+	tp->tv_usec = wtm.wMilliseconds * 1000;
+	return (0);
+}
+
+#ifdef _MSC_VER
+#define strcasecmp stricmp
+#define strncasecmp  strnicmp 
+#endif
+
 #endif
 
 
@@ -345,7 +376,7 @@ bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const ch
 uint64_t* updateLookupTBL(uint8_t seedhash[OFF_CYCLE_LEN+SKIP_CYCLE_LEN][32],uint64_t *plookupTbl,int plen);
 void truehashTableInit(uint64_t *tableLookup,int tlen);
 bool dataset_hash(uint8_t hash[64], uint64_t *data,int len);
-int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint8_t target[TARGETLEN],
+inline int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint8_t target[TARGETLEN],
 				uint64_t *nonce,uint64_t max_nonce, uint64_t *hashes_done);
 
 struct thread_q;

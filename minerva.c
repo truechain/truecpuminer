@@ -2331,7 +2331,7 @@ bool dataset_hash(uint8_t hash[64], uint64_t *data,int len) {
 	for (int i = 0; i < len; i++) {
 		memcpy(datas + sizeof(uint64_t)*i, data + i, sizeof(uint64_t));
 	}
-	bool ret = sha3_512(hash,64,data, data_len);
+	bool ret = sha3_512(hash,64, datas, data_len);
 	free(datas);
 	return ret;
 }
@@ -2411,7 +2411,7 @@ void truehashFull(uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint64_t no
 
 	return fchainmining(dataset,dlen, hash, nonce,res);
 }
-inline int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint8_t target[TARGETLEN],
+int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint8_t target[TARGETLEN],
 	uint64_t *nonce,uint64_t max_nonce, uint64_t *hashes_done)
 {	
 	struct miner_result res;
