@@ -22,8 +22,7 @@
 #include "miner.h"
 
 
-
-static const int DGSTSIZE = 32;
+#define DGSTSIZE 32
 static const int UPDATABLOCKLENGTH = 12000; //12000  3000
 static const int STARTUPDATENUM = 10240;    //10240  2600
 static const int OFF_STATR = 12;            //in advance updata the algorithm
@@ -171,7 +170,6 @@ void fchainmining(uint64_t *plookup,int plen, uint8_t header[HEADSIZE],uint64_t 
         res = 0;
         return ;
     }
-    uint8_t *output = (uint8_t*)calloc(DGSTSIZE,1);
 	uint32_t val0 = (uint32_t)(nonce & 0xFFFFFFFF);
 	uint32_t val1 = (uint32_t)(nonce >> 32);
 
@@ -183,7 +181,6 @@ void fchainmining(uint64_t *plookup,int plen, uint8_t header[HEADSIZE],uint64_t 
 		seed[k] = (uint8_t)val1 & 0xFF;
 		val1 >>= 8;
 	}
-    uint8_t *dgst = (uint8_t*)calloc(DGSTSIZE,1);
 
 	for (int k = 0; k < HEADSIZE; k++) {
 		seed[k+8] = header[k];
@@ -227,7 +224,8 @@ void fchainmining(uint64_t *plookup,int plen, uint8_t header[HEADSIZE],uint64_t 
 		dat_in[k*4+1] = dat_in[k*4+2];
 		dat_in[k*4+2] = temp;
 	}
-
+	uint8_t output[64] = { 0 };
+	uint8_t dgst[DGSTSIZE] = { 0 };
 	sha3_512(output,64,dat_in,256);
 	// reverse byte
 	for (int k = 0; k < DGSTSIZE; k++) {
