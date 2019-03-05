@@ -598,6 +598,7 @@ start:
 	sret = stratum_recv_line(sctx);
 	if (!sret)
 		goto out;
+	applog(LOG_INFO, "mining.subscribe repos%s", sret);
 
 	val = JSON_LOADS(sret, &err);
 	free(sret);
