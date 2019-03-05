@@ -627,7 +627,7 @@ start:
 	sid = json_string_value(json_array_get(arr_val, 1));
 	stratum_agent = json_string_value(json_array_get(arr_val, 2));
 
-	if (!notify || !strcasecmp(notify, "mining.notify") || !sid || !stratum_agent) {
+	if (!notify || strcasecmp(notify, "mining.notify") || !sid || !stratum_agent) {
 		applog(LOG_ERR, "Failed to get notify,session id");
 		goto out;
 	}
