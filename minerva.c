@@ -19,6 +19,7 @@
 // #include <stdlib.h>
 // #include <string.h>
 #include "sha3.h"
+#include "sha3_256.h"
 #include "miner.h"
 
 
@@ -26,6 +27,7 @@
 static const int UPDATABLOCKLENGTH = 12000; //12000  3000
 static const int STARTUPDATENUM = 10240;    //10240  2600
 static const int OFF_STATR = 12;            //in advance updata the algorithm
+static const int dataset_len = (TBLSIZE*DATALENGTH*PMTSIZE * 32);
 
 struct miner_result{
     uint8_t digset[32];
@@ -39,8 +41,15 @@ bool sha3_512(uint8_t *dest,int dlen,uint8_t *data,int len) {
 	sha3(data,len,dest,dlen);
 	return true;
 }
+bool sha3_256_hash(uint8_t *dest, int dlen, uint8_t *data, int len) {
+	if (dest == 0 || dlen != 32 || data == 0 || len < 0) {
+		return false;
+	}
+	sha3_256(dest, dlen * 8, data, len * 8);
+	return true;
+}
 int genLookupTable(uint64_t *plookup,int plen, uint32_t *ptable,int tlen) {
-    if (plookup == 0 || plen < 10240*32 || ptable == 0 || tlen < TBLSIZE*DATALENGTH*PMTSIZE) {
+    if (plookup == 0 || plen < dataset_len || ptable == 0 || tlen < TBLSIZE*DATALENGTH*PMTSIZE) {
         return 0;
     }
 	uint32_t lktWz = (uint32_t)(DATALENGTH / 64);
@@ -98,7 +107,7 @@ uint32_t muliple(uint64_t* input,int inputlen,uint64_t* prow,int prowlen) {
 }
 int MatMuliple(uint64_t* input,int inputlen,uint64_t* output,int outlen,uint64_t* pmat,int pmatlen) {
     uint32_t point = 0;
-    if (input == 0 || inputlen<2048 || output==0 || outlen < 32 || pmat == 0 || pmatlen < 32*2048) {
+    if (input == 0 || inputlen<32 || output==0 || outlen < 32 || pmat == 0) {
         return 0;
     }
     for (int k=0;k<2048;k++) {
@@ -116,7 +125,7 @@ int shift2048(uint64_t *in, int inlen, int sf) {
     }
 	int sfI = sf / 64;
 	int sfR = sf % 64;
-	uint64_t mask = (uint64_t)(1) << sfR - 1;
+	uint64_t mask = ((uint64_t)(1) << sfR) - 1;
 	int bits = (64 - sfR);
 	uint64_t res = 0;
 	if (sfI == 1) {
@@ -135,7 +144,7 @@ int shift2048(uint64_t *in, int inlen, int sf) {
 	return 0;
 }
 int scramble(uint64_t *permute_in,int inlen, uint64_t *plookup, int plen)  {
-    if (permute_in == 0 || inlen < 64 || plookup == 0 || plen < 10240) {
+    if (permute_in == 0 || inlen < 32 || plookup == 0 || plen < dataset_len) {
         return 0;
     }
 	uint64_t *ptbl = 0;
@@ -172,7 +181,7 @@ int byteReverse(uint8_t *sha512_out,int len)  {
 
 void fchainmining(uint64_t *plookup,int plen, uint8_t header[HEADSIZE],uint64_t nonce,struct miner_result *res) {
 	uint8_t seed[64] = {0};
-    if (plookup == 0 || plen < 10240*32 || res == 0) {
+    if (plookup == 0 || plen < dataset_len || res == 0) {
         res = 0;
         return ;
     }
@@ -230,9 +239,9 @@ void fchainmining(uint64_t *plookup,int plen, uint8_t header[HEADSIZE],uint64_t 
 		dat_in[k*4+1] = dat_in[k*4+2];
 		dat_in[k*4+2] = temp;
 	}
-	uint8_t output[64] = { 0 };
+	uint8_t output[32] = { 0 };
 	uint8_t dgst[DGSTSIZE] = { 0 };
-	sha3_512(output,64,dat_in,256);
+	sha3_256_hash(output,32,dat_in,256);
 	// reverse byte
 	for (int k = 0; k < DGSTSIZE; k++) {
 		dgst[k] = output[k];
