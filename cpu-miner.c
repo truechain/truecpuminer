@@ -183,8 +183,8 @@ static void free_dataset() {
         _ds.dataset = 0;
     } 
 }
-static inline bool match_ds_hash(uint8_t hash[64]) {
-    return 0 == memcmp(_ds.seedhash,hash,64);
+static inline bool match_ds_hash(uint8_t hash[32]) {
+    return 0 == memcmp(_ds.seedhash,hash,32);
 }
 static bool wait_stop_use_dataset() {
     int pos = 0;
@@ -406,10 +406,11 @@ static void *miner_thread(void *userdata)
 	char s[16];
 	uint64_t end_nonce = 0xffffffffffffffffull;
 	uint64_t start_nonce = end_nonce / opt_n_threads * thr_id;
-	uint64_t max_nonce = start_nonce + end_nonce / opt_n_threads;
-	if (opt_n_threads == thr_id + 1) {
-		max_nonce = end_nonce;
-	}
+	uint64_t max_nonce = end_nonce;
+	//uint64_t max_nonce = start_nonce + end_nonce / opt_n_threads;
+	//if (opt_n_threads == thr_id + 1) {
+	//	max_nonce = end_nonce;
+	//}
 
 	/* Set worker threads to nice 19 and then preferentially to SCHED_IDLE
 	 * and if that fails, then SCHED_BATCH. No need for this to be an

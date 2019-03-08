@@ -735,7 +735,7 @@ static bool stratum_notify(struct stratum_ctx *sctx, json_t *params)
 	// nbits = json_string_value(json_array_get(params, 5));
 	// ntime = json_string_value(json_array_get(params, 6));	
 	if (!job_id || !seedhash || !headhash ||
-	    strlen(seedhash) != 128 || strlen(headhash) != 64) {
+	    strlen(seedhash) != 64 || strlen(headhash) != 64) {
 		applog(LOG_ERR, "Stratum notify: invalid parameters");
 		goto out;
 	}
@@ -743,8 +743,8 @@ static bool stratum_notify(struct stratum_ctx *sctx, json_t *params)
 	pthread_mutex_lock(&sctx->work_lock);
 	free(sctx->job.job_id);
 	sctx->job.job_id = strdup(job_id);
-	hex2bin(sctx->job.seedhash, seedhash, 32);
-	hex2bin(sctx->job.headhash, headhash, 32);
+	hex2bin(sctx->job.seedhash, seedhash, 64);
+	hex2bin(sctx->job.headhash, headhash, 64);
 	sctx->job.clean = clean;
 	memcpy(sctx->job.target,sctx->next_target,TARGETLEN);
 	//sctx->job.diff = sctx->next_diff;
@@ -904,7 +904,7 @@ bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const ch
 			goto out;
 		}
 		seeds[i] = malloc(32);
-		hex2bin(seeds[i], s, 32);
+		hex2bin(seeds[i], s, 64);
 	}
 	ret = true;
 out:

@@ -815,7 +815,7 @@ static const uint32_t tableOrg[][8192] = {
 };
 
 ///////////////////////////////////////////////////////////////////
-bool dataset_hash(uint8_t hash[64], uint64_t *data,int len) {
+bool dataset_hash(uint8_t hash[32], uint64_t *data,int len) {
 	int data_len = len * sizeof(uint64_t);
 	unsigned char *datas = calloc(data_len, 1);
 	if (!datas) {
@@ -824,7 +824,7 @@ bool dataset_hash(uint8_t hash[64], uint64_t *data,int len) {
 	for (int i = 0; i < len; i++) {
 		memcpy(datas + sizeof(uint64_t)*i, data + i, sizeof(uint64_t));
 	}
-	bool ret = sha3_512(hash,64, datas, data_len);
+	bool ret = sha3_256_hash(hash,32, datas, data_len);
 	free(datas);
 	return ret;
 }

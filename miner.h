@@ -321,7 +321,7 @@ extern int timeval_subtract(struct timeval *result, struct timeval *x,
 
 struct stratum_job {
 	char *job_id;
-	unsigned char seedhash[64];
+	unsigned char seedhash[32];
 	unsigned char headhash[32];
 	unsigned char target[TARGETLEN];
 	unsigned char *xnonce2;
@@ -356,7 +356,7 @@ struct stratum_ctx {
 
 struct true_dataset{
 	uint64_t *dataset;
-	uint8_t  seedhash[64];
+	uint8_t  seedhash[32];
 	int 	len;
 	volatile uint32_t update;
 };
@@ -372,7 +372,7 @@ bool stratum_handle_method(struct stratum_ctx *sctx, const char *s);
 bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const char *job_id,unsigned char** seeds);
 uint64_t* updateLookupTBL(uint8_t seedhash[OFF_CYCLE_LEN+SKIP_CYCLE_LEN][32],uint64_t *plookupTbl,int plen);
 void truehashTableInit(uint64_t *tableLookup,int tlen);
-bool dataset_hash(uint8_t hash[64], uint64_t *data,int len);
+bool dataset_hash(uint8_t hash[32], uint64_t *data,int len);
 inline int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint8_t target[TARGETLEN],
 				uint64_t *nonce,uint64_t max_nonce, uint64_t *hashes_done);
 
