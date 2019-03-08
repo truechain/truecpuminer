@@ -197,10 +197,12 @@ static inline void affine_to_cpu(int id, int cpu)
                    | (((x) >> 8) & 0x0000ff00u) | (((x) >> 24) & 0x000000ffu))
 #endif
 
-#define make_new_seeds(seeds) unsigned char **seeds = malloc((OFF_CYCLE_LEN+SKIP_CYCLE_LEN) * sizeof(unsigned char *));
+#define make_new_seeds(seeds) unsigned char **seeds = malloc((OFF_CYCLE_LEN+SKIP_CYCLE_LEN) * sizeof(unsigned char *)); \
+							  if(seeds){ for(int i=0;i<OFF_CYCLE_LEN+SKIP_CYCLE_LEN;i++){ seeds[i] = 0; }}
+
 
 #define free_seeds(seeds) if(seeds){ for(int i=0;i<OFF_CYCLE_LEN+SKIP_CYCLE_LEN;i++){ \
-							if (seeds[i]) {free(seeds[i]);} } \
+							if (seeds[i]) { free(seeds[i]); } } \
 							free(seeds); \
 						}
 

@@ -882,12 +882,12 @@ bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const ch
 		applog(LOG_ERR, "JSON decode failed(%d): %s", err.line, err.text);
 		goto out;
 	}
-
+	int id = json_integer_value(json_object_get(val,"id"));
 	res_val = json_object_get(val, "result");
 	err_val = json_object_get(val, "error");
 
 	if (!res_val || !json_is_array(res_val) ||
-	    (err_val && !json_is_null(err_val)))  {
+	    (err_val && !json_is_null(err_val)) || id != 5)  {
 		applog(LOG_ERR, "Stratum update_dataset failed");
 		goto out;
 	}
@@ -896,15 +896,15 @@ bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const ch
 
 	unsigned int seed_count = json_array_size(res_val);
 	for (int i = 0; i < seed_count; i++) {
-		const char *s = json_string_value(json_array_get(res_val, i));
-		if (!s || strlen(s) != 64) {
+		const char *ss = json_string_value(json_array_get(res_val, i));
+		if (!ss || strlen(ss) != 64) {
 			while (i--)
 				free(seeds[i]);
 			applog(LOG_ERR, "Stratum update dataset: invalid seedhash");
 			goto out;
 		}
 		seeds[i] = malloc(32);
-		hex2bin(seeds[i], s, 64);
+		hex2bin(seeds[i], ss, 64);
 	}
 	ret = true;
 out:
