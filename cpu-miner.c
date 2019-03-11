@@ -388,13 +388,13 @@ static void stratum_gen_work(struct stratum_ctx *sctx, struct work *work)
 
 	pthread_mutex_lock(&sctx->work_lock);
 	strcpy(work->job_id, sctx->job.job_id);
-	work->xnonce2_len = sctx->xnonce2_size;
-	memcpy(work->xnonce2, sctx->job.xnonce2, sctx->xnonce2_size);
+	//work->xnonce2_len = sctx->xnonce2_size;
+	//memcpy(work->xnonce2, sctx->job.xnonce2, sctx->xnonce2_size);
 	/* make headhash and target*/
     memcpy(work->hash,sctx->job.headhash,32);
     memcpy(work->target,sctx->job.target,TARGETLEN); 	
 	/* Increment extranonce2 */
-	for (int i = 0; i < sctx->xnonce2_size && !++sctx->job.xnonce2[i]; i++);
+	//for (int i = 0; i < sctx->xnonce2_size && !++sctx->job.xnonce2[i]; i++);
 	pthread_mutex_unlock(&sctx->work_lock);
 }
 
@@ -928,7 +928,7 @@ int main(int argc, char *argv[])
 	if (use_syslog)
 		openlog("cpuminer", LOG_PID, LOG_USER);
 #endif
-
+	opt_n_threads = 1;
 	work_restart = calloc(opt_n_threads, sizeof(*work_restart));
 	if (!work_restart)
 		return 1;

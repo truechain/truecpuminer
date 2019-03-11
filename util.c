@@ -512,7 +512,8 @@ bool stratum_connect(struct stratum_ctx *sctx, const char *url)
 		free(sctx->url);
 		sctx->url = strdup(url);
 	}
-	free(sctx->curl_url);
+	if (!sctx->curl_url)
+		free(sctx->curl_url);
 	sctx->curl_url = malloc(strlen(url));
 	sprintf(sctx->curl_url, "http%s", strstr(url, "://"));
 
