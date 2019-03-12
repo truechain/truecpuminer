@@ -452,7 +452,9 @@ static void *miner_thread(void *userdata)
 		}
 		work_restart[thr_id].restart = 0;	
 		work.nonce = start_nonce;
-		
+		applog(LOG_INFO, "begin miner, thread:%d, job_id:%s,nonce:%ull",
+			thr_id, work.job_id, work.nonce);
+
 		hashes_done = 0;
 		gettimeofday(&tv_start, NULL);
 
@@ -489,6 +491,8 @@ static void *miner_thread(void *userdata)
 		if (rc && !opt_benchmark) {
 			restart_threads();
 			work.submit = submit_work(mythr, &work);
+			applog(LOG_INFO, "end miner,thread:%d, job_id:%s,nonce:%ull",
+				thr_id, work.job_id,work.nonce);
 			g_work.done = true;
 		}
 	}
@@ -590,7 +594,7 @@ static void *stratum_thread(void *userdata)
 			}
 		}
 		
-		if (!stratum_socket_full(&stratum, 120)) {
+		if (!stratum_socket_full(&stratum, 600)) {
 			applog(LOG_ERR, "Stratum connection timed out");
 			s = NULL;
 		} else
