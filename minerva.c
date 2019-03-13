@@ -867,7 +867,6 @@ void truehashTableInit(uint64_t *tableLookup,int tlen) {
 }
 //UpdateTBL Update dataset information
 uint64_t* updateTBL(int offset[OFF_SKIP_LEN], int skip[OFF_SKIP_LEN], uint64_t *plookupTbl, int plen) {
-
 	uint32_t lktWz = (uint32_t)(DATALENGTH / 64);
 	uint32_t lktSz = (uint32_t)(DATALENGTH) * lktWz;
 
@@ -901,6 +900,7 @@ uint64_t* updateTBL(int offset[OFF_SKIP_LEN], int skip[OFF_SKIP_LEN], uint64_t *
 	return plookupTbl;
 }
 uint64_t* updateLookupTBL(uint8_t seedhash[OFF_CYCLE_LEN+SKIP_CYCLE_LEN][32],uint64_t *plookupTbl,int plen) {
+	memset((void*)plookupTbl,0,sizeof(uint64_t)*plen);
 	const int offsetCnst = 0x7,skipCnst = 0x3;
 	int offset[OFF_SKIP_LEN] = {0};
 	int skip[OFF_SKIP_LEN] = {0};
