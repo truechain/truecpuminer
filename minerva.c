@@ -34,6 +34,21 @@ struct miner_result{
     uint8_t result[32];
 };
 
+
+void output_bytes(uint8_t *datas, int len, char *headstr) {
+	char out[2048] = { 0 };
+	for (int i = 0; i < len; i++) {
+		sprintf(out + i * 3, "%02X,", datas[i]);
+	}
+	printf("%s:%s\n", headstr, out);
+}
+void output_bytes2(uint8_t *datas, int len, char *headstr) {
+	char out[2048] = { 0 };
+	for (int i = 0; i < len; i++) {
+		sprintf(out + i * 4, "%03d,", datas[i]);
+	}
+	printf("%s:%s\n", headstr, out);
+}
 bool sha3_512(uint8_t *dest,int dlen,uint8_t *data,int len) {
 	if (dest == 0 || dlen != 64 || data == 0 || len < 0) {
 		return false;
@@ -828,6 +843,17 @@ bool dataset_hash(uint8_t hash[32], uint64_t *data,int len) {
 	free(datas);
 	return ret;
 }
+void make_hash_from_set(uint8_t hash[32], int *data, int len) {
+	int data_len = len * sizeof(int);
+	unsigned char *datas = calloc(data_len, 1);
+	
+	for (int i = 0; i < len; i++) {
+		memcpy(datas + sizeof(int)*i, data + i, sizeof(int));
+	}
+	bool ret = sha3_256_hash(hash, 32, datas, data_len);
+	free(datas);
+	return ret;
+}
 void truehashTableInit(uint64_t *tableLookup,int tlen) {
 	uint32_t table[TBLSIZE * DATALENGTH * PMTSIZE] = {0};
 	int tsize = TBLSIZE * DATALENGTH * PMTSIZE;
@@ -859,7 +885,7 @@ uint64_t* updateTBL(int offset[OFF_SKIP_LEN], int skip[OFF_SKIP_LEN], uint64_t *
 				if (y >= 0 && y < SKIP_CYCLE_LEN) {
 					uint32_t vI = (uint32_t)(y / 64);
 					uint32_t vR = (uint32_t)(y % 64);
-					plookupTbl[plkt+vI] |= 1 << vR;
+					plookupTbl[plkt+vI] |= (uint64_t)1 << vR;
 					c = c + 1;
 				}
 				y = y + sk;
@@ -867,7 +893,7 @@ uint64_t* updateTBL(int offset[OFF_SKIP_LEN], int skip[OFF_SKIP_LEN], uint64_t *
 			if (c == 0) {
 				uint32_t vI = (uint32_t)(x / 64);
 				uint32_t vR = (uint32_t)(x % 64);
-				plookupTbl[plkt+vI] |= 1 << vR;
+				plookupTbl[plkt+vI] |= (uint64_t)1 << vR;
 			}
 			plkt += lktWz;
 		}
@@ -882,17 +908,17 @@ uint64_t* updateLookupTBL(uint8_t seedhash[OFF_CYCLE_LEN+SKIP_CYCLE_LEN][32],uin
 	//get offset cnst  8192 lenght
 	for (int i = 0; i < OFF_CYCLE_LEN; i++) {
 		uint8_t *val = seedhash[i];
-		offset[i*4] = (int)(val[0]) & offsetCnst - 4;
-		offset[i*4+1] = (int)(val[1]) & offsetCnst - 4;
-		offset[i*4+2] = (int)(val[2]) & offsetCnst - 4;
-		offset[i*4+3] = (int)(val[3]) & offsetCnst - 4;
+		offset[i*4] = ((int)(val[0]) & offsetCnst) - 4;
+		offset[i*4+1] = ((int)(val[1]) & offsetCnst) - 4;
+		offset[i*4+2] = ((int)(val[2]) & offsetCnst) - 4;
+		offset[i*4+3] = ((int)(val[3]) & offsetCnst) - 4;
 	}
 
 	//get skip cnst 2048 lenght
 	for (int i = 0; i < SKIP_CYCLE_LEN; i++) {
 		uint8_t *val = seedhash[OFF_CYCLE_LEN + i];
 		for (int k = 0; k < 16; k++) {
-			skip[i*16+k] = (int)(val[k]) & skipCnst + 1;
+			skip[i*16+k] = ((int)(val[k]) & skipCnst) + 1;
 		}
 	}
 

@@ -567,7 +567,6 @@ static void *stratum_thread(void *userdata)
 
         if (stratum.job.job_id && !match_ds_hash(stratum.job.seedhash)) {
             // update dataset
-            //make_new_seeds(seeds)
 			uint8_t seeds[OFF_CYCLE_LEN + SKIP_CYCLE_LEN][32] = { 0 };
 			unsigned char seedhash[32] = { 0 };
             if (!stratum_update_dataset(&stratum, rpc_user, stratum.job.job_id,seeds,seedhash)) {
@@ -575,7 +574,8 @@ static void *stratum_thread(void *userdata)
             } else {
                 // make new dataset before stop all miner
                 if (wait_stop_use_dataset()) {
-                    _ds.dataset = updateLookupTBL((uint8_t(*)[32])seeds,_ds.dataset,_ds.len);
+                    _ds.dataset = updateLookupTBL(seeds,_ds.dataset,_ds.len);
+					//_ds.dataset = updateLookupTBL((uint8_t(*)[32])seeds, _ds.dataset, _ds.len);
                     dataset_hash(_ds.seedhash,_ds.dataset,_ds.len);
                     update_use_dataset();
 					if (!match_ds_hash(seedhash)) {
@@ -583,7 +583,6 @@ static void *stratum_thread(void *userdata)
 					}
                 }
             }           
-            //free_seeds(seeds)
         }
 
         // keep update dataset already
