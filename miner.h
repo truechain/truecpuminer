@@ -371,7 +371,7 @@ void stratum_disconnect(struct stratum_ctx *sctx);
 bool stratum_subscribe(struct stratum_ctx *sctx);
 bool stratum_authorize(struct stratum_ctx *sctx, const char *user, const char *pass);
 bool stratum_handle_method(struct stratum_ctx *sctx, const char *s);
-bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const char *job_id,unsigned char** seeds);
+bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const char *job_id,unsigned char** seeds,unsigned char seedhash[32]);
 uint64_t* updateLookupTBL(uint8_t seedhash[OFF_CYCLE_LEN+SKIP_CYCLE_LEN][32],uint64_t *plookupTbl,int plen);
 void truehashTableInit(uint64_t *tableLookup,int tlen);
 bool dataset_hash(uint8_t hash[32], uint64_t *data,int len);
