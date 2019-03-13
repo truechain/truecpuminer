@@ -16,3 +16,4 @@ Basic *nix build instructions:
 	./configure CFLAGS="-O3" # Make sure -O3 is an O and not a zero!
 	make
 
+./tmined -h for help
