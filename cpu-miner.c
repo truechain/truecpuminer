@@ -258,12 +258,11 @@ static void share_result(int result, const char *reason)
 static bool submit_upstream_work(CURL *curl, struct work *work)
 {
 	char s[256]={0};
-
-	char *noncestr = bin2hex((const unsigned char *)(&work->nonce), 8);
+	//char *noncestr = bin2hex((const unsigned char *)(&work->nonce), 8);
 	// xnonce2str = bin2hex(work->xnonce2, work->xnonce2_len);
-	sprintf(s,"{\"method\": \"mining.submit\", \"params\": [\"%s\", \"%s\", \"%s\"], \"id\":244}",
-			rpc_user, work->job_id, noncestr);
-	free(noncestr);
+	sprintf(s,"{\"method\": \"mining.submit\", \"params\": [\"%s\", \"%s\", \"%llu\"], \"id\":244}",
+			rpc_user, work->job_id, work->nonce);
+	//free(noncestr);
 	// free(xnonce2str);
 
 	if (unlikely(!stratum_send_line(&stratum, s)))
@@ -450,9 +449,10 @@ static void *miner_thread(void *userdata)
 			sleep(1);
 			continue;
 		}
+		
 		work_restart[thr_id].restart = 0;	
 		work.nonce = start_nonce;
-		applog(LOG_INFO, "begin miner, thread:%d, job_id:%s,nonce:%ull",
+		applog(LOG_INFO, "begin miner, thread:%d, job_id:%s,nonce:%llu",
 			thr_id, work.job_id, work.nonce);
 
 		hashes_done = 0;
@@ -491,7 +491,7 @@ static void *miner_thread(void *userdata)
 		if (rc && !opt_benchmark) {
 			restart_threads();
 			work.submit = submit_work(mythr, &work);
-			applog(LOG_INFO, "end miner,thread:%d, job_id:%s,nonce:%ull",
+			applog(LOG_INFO, "end miner,thread:%d, job_id:%s,nonce:%llu",
 				thr_id, work.job_id,work.nonce);
 			g_work.done = true;
 		}
@@ -567,8 +567,10 @@ static void *stratum_thread(void *userdata)
 
         if (stratum.job.job_id && !match_ds_hash(stratum.job.seedhash)) {
             // update dataset
-            make_new_seeds(seeds)
-            if (!stratum_update_dataset(&stratum, rpc_user, stratum.job.job_id,seeds)) {
+            //make_new_seeds(seeds)
+			uint8_t seeds[OFF_CYCLE_LEN + SKIP_CYCLE_LEN][32] = { 0 };
+			unsigned char seedhash[32] = { 0 };
+            if (!stratum_update_dataset(&stratum, rpc_user, stratum.job.job_id,seeds,seedhash)) {
                 applog(LOG_INFO, "Stratum update dataset failed....will be retry.");
             } else {
                 // make new dataset before stop all miner
@@ -576,9 +578,12 @@ static void *stratum_thread(void *userdata)
                     _ds.dataset = updateLookupTBL((uint8_t(*)[32])seeds,_ds.dataset,_ds.len);
                     dataset_hash(_ds.seedhash,_ds.dataset,_ds.len);
                     update_use_dataset();
+					if (!match_ds_hash(seedhash)) {
+						applog(LOG_ERR, "stratum_update_dataset NOT match");
+					}
                 }
             }           
-            free_seeds(seeds)
+            //free_seeds(seeds)
         }
 
         // keep update dataset already

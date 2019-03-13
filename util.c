@@ -754,6 +754,7 @@ static bool stratum_notify(struct stratum_ctx *sctx, json_t *params)
 	// hex2bin(sctx->job.ntime, ntime, 4);
 	pthread_mutex_unlock(&sctx->work_lock);
 	ret = true;
+	applog(LOG_INFO, "handle notify,job_id:%s,seedhash:%s,headhash:%s,",job_id, seedhash, headhash);
 
 out:
 	return ret;
@@ -854,15 +855,15 @@ static bool stratum_show_message(struct stratum_ctx *sctx, json_t *id, json_t *p
 
 	return ret;
 }
-bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const char *job_id,unsigned char** seeds)
+bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const char *job_id,unsigned char** seeds, unsigned char seedhash[32])
 {
-	json_t *val = NULL, *res_val, *err_val;
+	json_t *val = NULL, *res_val, *err_val,*seeds_val;
 	char *s, *sret;
 	json_error_t err;
 	bool ret = false;
 
 	s = malloc(80 + strlen(user) + strlen(job_id));
-	sprintf(s, "{\"id\": 2, \"method\": \"mining.seedhash\", \"params\": [\"%s\", \"%s\"]}",
+	sprintf(s, "{\"id\": 5, \"method\": \"mining.seedhash\", \"params\": [\"%s\", \"%s\"]}",
 	        user, job_id);
 
 	if (!stratum_send_line(sctx, s))
@@ -892,12 +893,17 @@ bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const ch
 		applog(LOG_ERR, "Stratum update_dataset failed");
 		goto out;
 	}
-	const char *seedhash = json_string_value(json_object_get(val,"seedhash"));
-	if (NULL == seedhash) goto out;
+	const char *seedhashstr = json_string_value(json_array_get(res_val,1));
+	seeds_val = json_array_get(res_val, 0);
+	if (NULL == seedhashstr || seeds_val == NULL || strlen(seedhashstr) != 64) goto out;
 
-	unsigned int seed_count = json_array_size(res_val);
+	unsigned int seed_count = json_array_size(seeds_val);
+	if (seed_count != (OFF_CYCLE_LEN + SKIP_CYCLE_LEN)) {
+		applog(LOG_ERR, "Stratum update dataset,seed_count error:%d",seed_count);
+		goto out;
+	}
 	for (int i = 0; i < seed_count; i++) {
-		const char *ss = json_string_value(json_array_get(res_val, i));
+		const char *ss = json_string_value(json_array_get(seeds_val, i));
 		if (!ss || strlen(ss) != 64) {
 			while (i--)
 				free(seeds[i]);
@@ -907,6 +913,7 @@ bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const ch
 		seeds[i] = malloc(32);
 		hex2bin(seeds[i], ss, 64);
 	}
+	hex2bin(seedhash, seedhashstr, 64);
 	ret = true;
 out:
 	free(s);
