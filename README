@@ -6,14 +6,17 @@ License: GPLv2.  See COPYING for details.
 Git tree:   https://github.com/truechain/trueminer/
 
 Dependencies:
-	libcurl			http://curl.haxx.se/libcurl/
-	jansson			http://www.digip.org/jansson/
-		(jansson is included in-tree)
+- libcurl			http://curl.haxx.se/libcurl/
+- jansson			http://www.digip.org/jansson/ (jansson is included in-tree)
 
 Basic *nix build instructions:
-	./autogen.sh	# only needed if building from git repo
-	# ./nomacro.pl	# in case the assembler doesn't support macros
-	./configure CFLAGS="-O3" # Make sure -O3 is an O and not a zero!
-	make
+```
+./autogen.sh	# only needed if building from git repo
+# ./nomacro.pl	# in case the assembler doesn't support macros
+./configure CFLAGS="-O3" # Make sure -O3 is an O and not a zero!
+make
+```
 
+`
 ./tmined -h for help
+`
