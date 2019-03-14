@@ -383,8 +383,6 @@ err_out:
 
 static void stratum_gen_work(struct stratum_ctx *sctx, struct work *work)
 {
-	unsigned char merkle_root[64];
-
 	pthread_mutex_lock(&sctx->work_lock);
 	strcpy(work->job_id, sctx->job.job_id);
 	//work->xnonce2_len = sctx->xnonce2_size;
@@ -567,7 +565,7 @@ static void *stratum_thread(void *userdata)
 
         if (stratum.job.job_id && !match_ds_hash(stratum.job.seedhash)) {
             // update dataset
-			uint8_t seeds[OFF_CYCLE_LEN + SKIP_CYCLE_LEN][32] = { 0 };
+			uint8_t seeds[OFF_CYCLE_LEN + SKIP_CYCLE_LEN][16] = { 0 };
 			unsigned char seedhash[32] = { 0 };
             if (!stratum_update_dataset(&stratum, rpc_user, stratum.job.job_id,seeds,seedhash)) {
                 applog(LOG_INFO, "Stratum update dataset failed....will be retry.");
@@ -580,6 +578,7 @@ static void *stratum_thread(void *userdata)
                     update_use_dataset();
 					if (!match_ds_hash(seedhash)) {
 						applog(LOG_ERR, "stratum_update_dataset NOT match");
+						check_seed_head_hash(seeds);
 					}
                 }
             }           
@@ -866,10 +865,10 @@ int main(int argc, char *argv[])
 	struct thr_info *thr;
 	long flags;
 	int i;
-
+	
 	rpc_url = strdup(DEF_RPC_URL);
-	rpc_user = strdup("");
-	rpc_pass = strdup("");
+	rpc_user = strdup("admin");
+	rpc_pass = strdup("admin");
 
 	/* parse command line */
 	parse_cmdline(argc, argv);
@@ -949,8 +948,11 @@ int main(int argc, char *argv[])
 	thr_hashrates = (double *) calloc(opt_n_threads, sizeof(double));
 	if (!thr_hashrates)
 		return 1;
-
+	//test_minerva();
     init_dataset();
+	//char *seedhash = bin2hex(_ds.seedhash, 32);
+	//applog(LOG_INFO, "first current dataset_hash:%s", seedhash);
+	//free(seedhash);
 	/* init workio thread info */
 	work_thr_id = opt_n_threads;
 	thr = &thr_info[work_thr_id];

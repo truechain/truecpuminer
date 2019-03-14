@@ -899,7 +899,7 @@ uint64_t* updateTBL(int offset[OFF_SKIP_LEN], int skip[OFF_SKIP_LEN], uint64_t *
 	}
 	return plookupTbl;
 }
-uint64_t* updateLookupTBL(uint8_t seedhash[OFF_CYCLE_LEN+SKIP_CYCLE_LEN][32],uint64_t *plookupTbl,int plen) {
+uint64_t* updateLookupTBL(uint8_t seeds[OFF_CYCLE_LEN+SKIP_CYCLE_LEN][16],uint64_t *plookupTbl,int plen) {
 	memset((void*)plookupTbl,0,sizeof(uint64_t)*plen);
 	const int offsetCnst = 0x7,skipCnst = 0x3;
 	int offset[OFF_SKIP_LEN] = {0};
@@ -907,7 +907,7 @@ uint64_t* updateLookupTBL(uint8_t seedhash[OFF_CYCLE_LEN+SKIP_CYCLE_LEN][32],uin
 	
 	//get offset cnst  8192 lenght
 	for (int i = 0; i < OFF_CYCLE_LEN; i++) {
-		uint8_t *val = seedhash[i];
+		uint8_t *val = seeds[i];
 		offset[i*4] = ((int)(val[0]) & offsetCnst) - 4;
 		offset[i*4+1] = ((int)(val[1]) & offsetCnst) - 4;
 		offset[i*4+2] = ((int)(val[2]) & offsetCnst) - 4;
@@ -916,7 +916,7 @@ uint64_t* updateLookupTBL(uint8_t seedhash[OFF_CYCLE_LEN+SKIP_CYCLE_LEN][32],uin
 
 	//get skip cnst 2048 lenght
 	for (int i = 0; i < SKIP_CYCLE_LEN; i++) {
-		uint8_t *val = seedhash[OFF_CYCLE_LEN + i];
+		uint8_t *val = seeds[OFF_CYCLE_LEN + i];
 		for (int k = 0; k < 16; k++) {
 			skip[i*16+k] = ((int)(val[k]) & skipCnst) + 1;
 		}
@@ -961,3 +961,103 @@ int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HE
 	return 0;
 }
 ///////////////////////////////////////////////////////////////////
+
+void check_seed_head_hash(uint8_t seeds[OFF_CYCLE_LEN + SKIP_CYCLE_LEN][16]) {
+	uint8_t hash[32] = { 0 };
+	int sum = OFF_CYCLE_LEN + SKIP_CYCLE_LEN;
+	//sum = 1;
+	int data_len = sum * 16;
+	unsigned char *datas = calloc(data_len, 1);
+
+	for (int i = 0; i < sum; i++) {
+		memcpy(datas + 16*i, seeds[i], 16);
+	}
+	bool ret = sha3_256_hash(hash, 32, datas, data_len);
+	output_bytes(hash, 32, "seed_head_hash");
+	free(datas);
+}
+void test_sha3() {
+	unsigned char data[6] = {1,2,3,4,5,6};
+	uint8_t hash[64] = { 0 }, hash2[32] = {0};
+	bool ret = sha3_512(hash, 64, data, 6);
+	output_bytes(hash,64,"sha3");
+	ret = sha3_256_hash(hash2, 32, data, 6);
+	output_bytes(hash2, 32, "sha3-256");
+}
+void test_nonce() {
+	unsigned long long nonce = 800;
+	char *noncestr = bin2hex((const unsigned char*)&nonce,sizeof(nonce));
+	printf("noncestr:%s", noncestr);
+	free(noncestr);
+}
+void test_dataset() {
+	char filename[256] = { "d:\\2.txt" };
+	unsigned char seedhash[32] = { 0 };
+	uint64_t* dataset1 = calloc(dataset_len, sizeof(uint64_t));
+	printf("test dataset 1\n");
+	truehashTableInit(dataset1, dataset_len);
+	dataset_hash(seedhash, dataset1, dataset_len);
+	// seedhash test
+	output_bytes(seedhash, 32, "seedhash1");
+	printf("test dataset 2\n");
+	uint8_t seeds[OFF_CYCLE_LEN + SKIP_CYCLE_LEN][16] = { 0 };
+
+	FILE *fp;
+	fp = fopen(filename, "r");
+	if (fp == NULL)
+	{
+		printf("can not load file!\n");
+		return 0;
+	}
+	int pos = 0;
+	while (!feof(fp))
+	{
+		char line[1000] = {0};
+		char hash[33] = { 0 };
+		fgets(line, 1000, fp);
+		memcpy(hash, line, 32);
+		hex2bin(seeds[pos], hash, 32);
+		pos++;
+	}
+	fclose(fp);
+
+
+	dataset1 = updateLookupTBL(seeds, dataset1, dataset_len);
+	dataset_hash(seedhash, dataset1, dataset_len);
+	output_bytes(seedhash, 32, "seedhash2");
+	free(dataset1);
+	printf("test dataset finish\n");
+}
+void test_minerva() {
+	test_dataset();
+	test_nonce();
+	test_sha3();
+	// table init test
+	unsigned char seedhash[32] = {0};
+	uint64_t end_nonce = 0xffffffffffffffffull;
+	char out[256] = { 0 };
+	uint64_t* dataset = calloc(dataset_len, sizeof(uint64_t));
+
+	truehashTableInit(dataset, dataset_len);
+	dataset_hash(seedhash, dataset, dataset_len);
+	// seedhash test
+	output_bytes(seedhash, 32, "seedhash");
+	
+	// miner test
+	char chash[] = { "645cf20198c2f3861e947d4f67e3ab63b7b2e24dcc9095bd9123e7b33371f6cc" };
+	uint8_t hash[HEADSIZE] = { 0 };
+	hex2bin(hash, chash, 64);
+	output_bytes(hash, HEADSIZE, "headhash:");
+	char ctarget[] = { "0000a7c5ac471b4784230fcf80dc3372" };
+	uint8_t target[TARGETLEN] = { 0 };
+	hex2bin(target, ctarget,32);
+	output_bytes(target, TARGETLEN, "target:");
+
+	uint64_t start_nonce = 80408;
+	uint64_t max_nonce = end_nonce,hashes_done=0;
+	int ret = scanhash_sha512(0,dataset, dataset_len,hash,target,&start_nonce,max_nonce,&hashes_done);
+	if (ret == 1) {
+		printf("hash done,%llu",start_nonce);
+	}
+	free(dataset);
+}

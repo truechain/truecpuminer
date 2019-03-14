@@ -855,7 +855,7 @@ static bool stratum_show_message(struct stratum_ctx *sctx, json_t *id, json_t *p
 
 	return ret;
 }
-bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const char *job_id,unsigned char** seeds, unsigned char seedhash[32])
+bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const char *job_id, uint8_t seeds[OFF_CYCLE_LEN + SKIP_CYCLE_LEN][16], unsigned char seedhash[32])
 {
 	json_t *val = NULL, *res_val, *err_val,*seeds_val;
 	char *s, *sret;
@@ -904,14 +904,12 @@ bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const ch
 	}
 	for (int i = 0; i < seed_count; i++) {
 		const char *ss = json_string_value(json_array_get(seeds_val, i));
-		if (!ss || strlen(ss) != 64) {
+		if (!ss || strlen(ss) != 32) {
 			while (i--)
-				free(seeds[i]);
-			applog(LOG_ERR, "Stratum update dataset: invalid seedhash");
+			applog(LOG_ERR, "Stratum update dataset: invalid seed_headhash");
 			goto out;
 		}
-		seeds[i] = malloc(32);
-		hex2bin(seeds[i], ss, 64);
+		hex2bin(seeds[i], ss, 32);
 	}
 	hex2bin(seedhash, seedhashstr, 64);
 	ret = true;
