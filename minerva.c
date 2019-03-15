@@ -955,7 +955,7 @@ int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HE
 			return 1;
 		}
 		(*nonce)++;
-	} while (*nonce < max_nonce && !work_restart[thr_id].restart);	
+	} while (/**nonce < max_nonce && */!work_restart[thr_id].restart);	
 	*hashes_done = *nonce - first_nonce + 1;
 	work_restart[thr_id].stopped = 1;
 	return 0;

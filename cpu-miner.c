@@ -448,7 +448,8 @@ static void *miner_thread(void *userdata)
 			sleep(1);
 			continue;
 		}
-		
+		srand((unsigned)time(NULL));
+		start_nonce = (uint64_t)rand() * (uint64_t)rand() * 10;
 		work_restart[thr_id].restart = 0;	
 		work.nonce = start_nonce;
 		applog(LOG_INFO, "begin miner, thread:%d, job_id:%s,nonce:%llu",
