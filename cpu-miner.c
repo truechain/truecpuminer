@@ -377,6 +377,7 @@ static bool submit_work(struct thr_info *thr, const struct work *work_in)
 	return true;
 
 err_out:
+	applog(LOG_ERR, "submit_work failed,thread: %d,job_id:%s",thr->id,work_in->job_id);
 	workio_cmd_free(wc);
 	return false;
 }
@@ -590,6 +591,7 @@ static void *stratum_thread(void *userdata)
 		    (strcmp(stratum.job.job_id, g_work.job_id) || !g_work_time)) {
 			pthread_mutex_lock(&g_work_lock);
 			stratum_gen_work(&stratum, &g_work);
+			g_work.done = false;
 			time(&g_work_time);
 			pthread_mutex_unlock(&g_work_lock);
 			if (stratum.job.clean) {
