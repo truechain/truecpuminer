@@ -209,3 +209,26 @@ Server:
 
 
 
+###     7.获取cpuminer版本
+
+矿池获取矿机cpuminer版本。
+
+
+Server:
+
+```
+{
+  "id": 6,
+  "method": "client.get_version"
+}
+```
+
+
+Client:
+
+```
+  "id": 6,
+  "result": "cpuminer/0.1.0",
+  "error": null
+```
+
