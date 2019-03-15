@@ -492,6 +492,7 @@ static void *miner_thread(void *userdata)
 			applog(LOG_INFO, "end miner,thread:%d, job_id:%s,nonce:%llu",
 				thr_id, work.job_id,work.nonce);
 			g_work.done = true;
+			work.done = true;
 		}
 	}
 
