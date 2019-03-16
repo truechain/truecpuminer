@@ -12,7 +12,8 @@
 #include "miner.h"
 
 #define PROGRAM_NAME	"true-minerd"
-#define DEF_RPC_URL		"http://127.0.0.1:9332/"
+// #define DEF_RPC_URL		"http://127.0.0.1:9332/"
+#define DEF_RPC_URL	 "stratum+tcp://192.168.1.101:8788"
 #define LP_SCANTIME		60
 
 
