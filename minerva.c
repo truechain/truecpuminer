@@ -931,7 +931,7 @@ void truehashFull(uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint64_t no
 	return fchainmining(dataset,dlen, hash, nonce,res);
 }
 int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint8_t target[TARGETLEN],
-	uint64_t *nonce,uint64_t max_nonce, uint64_t *hashes_done)
+	uint8_t mixhash[HEADSIZE],uint64_t *nonce,uint64_t max_nonce, uint64_t *hashes_done)
 {	
 	struct miner_result res;
 	uint8_t head[16] = {0};
@@ -945,6 +945,7 @@ int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HE
 		if (memcmp(head, target, TARGETLEN) < 0) {
 			*hashes_done = *nonce - first_nonce + 1;
 			work_restart[thr_id].stopped = 1;
+			memcpy(mixhash, res.result, 32);
 			return 1;
 		}
 		// block
@@ -952,6 +953,7 @@ int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HE
 		if (memcmp(head, target, TARGETLEN) < 0) {
 			*hashes_done = *nonce - first_nonce + 1;
 			work_restart[thr_id].stopped = 1;
+			memcpy(mixhash, res.result, 32);
 			return 1;
 		}
 		(*nonce)++;
@@ -1055,7 +1057,8 @@ void test_minerva() {
 
 	uint64_t start_nonce = 80408;
 	uint64_t max_nonce = end_nonce,hashes_done=0;
-	int ret = scanhash_sha512(0,dataset, dataset_len,hash,target,&start_nonce,max_nonce,&hashes_done);
+	uint8_t mixHash[32] = { 0 };
+	int ret = scanhash_sha512(0,dataset, dataset_len,hash,target, mixHash,&start_nonce,max_nonce,&hashes_done);
 	if (ret == 1) {
 		printf("hash done,%llu",start_nonce);
 	}

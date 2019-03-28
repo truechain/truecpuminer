@@ -299,6 +299,16 @@ struct work_restart {
 	char			padding[128 - sizeof(unsigned long)];
 };
 
+struct work {
+	uint8_t target[TARGETLEN];
+	uint8_t hash[32];
+	uint8_t mixHash[32];
+	uint64_t nonce;
+
+	bool done;
+	bool submit;
+};
+
 extern bool opt_debug;
 extern bool opt_protocol;
 extern int opt_timeout;
@@ -315,6 +325,7 @@ extern int longpoll_thr_id;
 extern int stratum_thr_id;
 extern struct work_restart *work_restart;
 
+
 extern void applog(int prio, const char *fmt, ...);
 extern char *bin2hex(const unsigned char *p, size_t len);
 extern bool hex2bin(unsigned char *p, const char *hexstr, size_t len);
@@ -322,14 +333,10 @@ extern int timeval_subtract(struct timeval *result, struct timeval *x,
 	struct timeval *y);
 
 struct stratum_job {
-	char *job_id;
 	unsigned char seedhash[32];
 	unsigned char headhash[32];
 	unsigned char target[TARGETLEN];
-	unsigned char *xnonce2;
 	unsigned char version[4];
-	unsigned char nbits[4];
-	unsigned char ntime[4];
 	bool clean;
 	double diff;
 };
@@ -345,13 +352,6 @@ struct stratum_ctx {
 	char *sockbuf;
 	pthread_mutex_t sock_lock;
 
-	double next_diff;
-	unsigned char next_target[TARGETLEN];
-
-	char *session_id;
-	size_t xnonce1_size;
-	unsigned char *xnonce1;
-	size_t xnonce2_size;
 	struct stratum_job job;
 	pthread_mutex_t work_lock;
 };
@@ -368,17 +368,17 @@ bool stratum_send_line(struct stratum_ctx *sctx, char *s);
 char *stratum_recv_line(struct stratum_ctx *sctx);
 bool stratum_connect(struct stratum_ctx *sctx, const char *url);
 void stratum_disconnect(struct stratum_ctx *sctx);
-bool stratum_subscribe(struct stratum_ctx *sctx);
-bool stratum_authorize(struct stratum_ctx *sctx, const char *user, const char *pass);
+void stratum_request_work(struct stratum_ctx *sctx);
+bool stratum_authorize(struct stratum_ctx *sctx, const char *coinbase, const char *user, const char* mail);
 bool stratum_handle_method(struct stratum_ctx *sctx, const char *s);
-bool stratum_update_dataset(struct stratum_ctx *sctx, const char *user, const char *job_id, uint8_t seeds[OFF_CYCLE_LEN + SKIP_CYCLE_LEN][16],unsigned char seedhash[32]);
+bool stratum_update_dataset(struct stratum_ctx *sctx, const char *curseedhash, uint8_t seeds[OFF_CYCLE_LEN + SKIP_CYCLE_LEN][16],unsigned char seedhash[32]);
 uint64_t* updateLookupTBL(uint8_t seeds[OFF_CYCLE_LEN+SKIP_CYCLE_LEN][16],uint64_t *plookupTbl,int plen);
 void truehashTableInit(uint64_t *tableLookup,int tlen);
 bool dataset_hash(uint8_t hash[32], uint64_t *data,int len);
-inline int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint8_t target[TARGETLEN],
-				uint64_t *nonce,uint64_t max_nonce, uint64_t *hashes_done);
+inline int scanhash_sha512(int thr_id, const uint64_t *dataset, int dlen, uint8_t hash[HEADSIZE], uint8_t target[TARGETLEN],
+	uint8_t mixhash[HEADSIZE], uint64_t *nonce, uint64_t max_nonce, uint64_t *hashes_done);
 void check_seed_head_hash(uint8_t seedhash[OFF_CYCLE_LEN + SKIP_CYCLE_LEN][16]);
-
+void get_work_id(char headhash[64]);
 void test_minerva();
 
 struct thread_q;

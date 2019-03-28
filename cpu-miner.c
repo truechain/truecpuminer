@@ -48,8 +48,7 @@ static const bool opt_time = true;
 static int opt_n_threads;
 static int num_processors;
 static char *rpc_url;
-static char *rpc_userpass;
-static char *rpc_user, *rpc_pass;
+static char *rpc_user,*coin_base,*mail;
 char *opt_cert;
 char *opt_proxy;
 long opt_proxy_type;
@@ -59,6 +58,9 @@ int longpoll_thr_id = -1;
 int stratum_thr_id = -1;
 struct work_restart *work_restart = NULL;
 static struct stratum_ctx stratum;
+static struct work g_work;
+static time_t g_work_time;
+static pthread_mutex_t g_work_lock;
 
 pthread_mutex_t applog_lock;
 pthread_mutex_t stats_lock;
@@ -88,9 +90,9 @@ static char const usage[] = "\
 Usage: " PROGRAM_NAME " [OPTIONS]\n\
 Options:\n\
   -o, --url=URL         URL of mining server (default: " DEF_RPC_URL ")\n\
-  -O, --userpass=U:P    username:password pair for mining server\n\
+  -C, --coinbase=0x***  coinbase for mining reward(34 char length)\n\
   -u, --user=USERNAME   username for mining server\n\
-  -p, --pass=PASSWORD   password for mining server\n\
+  -m, --mail=Mail       mail for mining server\n\
       --cert=FILE       certificate for mining server using SSL\n\
   -x, --proxy=[PROTOCOL://]HOST[:PORT]  connect through a proxy\n\
   -t, --threads=N       number of miner threads (default: number of processors)\n\
@@ -98,7 +100,6 @@ Options:\n\
                           (default: retry indefinitely)\n\
   -R, --retry-pause=N   time to pause between retries, in seconds (default: 30)\n\
   -T, --timeout=N       network timeout, in seconds (default: 270)\n\
-      --no-stratum      disable X-Stratum support(no)\n\
   -q, --quiet           disable per-thread hashmeter output\n\
   -D, --debug           enable debug output\n\
   -P, --protocol-dump   verbose dump of protocol-level activities\n"
@@ -124,7 +125,7 @@ static char const short_options[] =
 #ifdef HAVE_SYSLOG_H
 	"S"
 #endif
-	"c:Dhp:Px:qr:R:s:t:T:o:u:O:V";
+	"c:Dhm:Px:qr:R:s:t:T:o:u:C:V";
 
 static struct option const options[] = {
 #ifndef WIN32
@@ -135,8 +136,7 @@ static struct option const options[] = {
 	{ "config", 1, NULL, 'c' },
 	{ "debug", 0, NULL, 'D' },
 	{ "help", 0, NULL, 'h' },
-	{ "no-stratum", 0, NULL, 1007 },
-	{ "pass", 1, NULL, 'p' },
+	{ "mail", 1, NULL, 'm' },
 	{ "protocol-dump", 0, NULL, 'P' },
 	{ "proxy", 1, NULL, 'x' },
 	{ "quiet", 0, NULL, 'q' },
@@ -149,26 +149,11 @@ static struct option const options[] = {
 	{ "timeout", 1, NULL, 'T' },
 	{ "url", 1, NULL, 'o' },
 	{ "user", 1, NULL, 'u' },
-	{ "userpass", 1, NULL, 'O' },
+	{ "coinbase", 1, NULL, 'C' },
 	{ "version", 0, NULL, 'V' },
 	{ 0, 0, 0, 0 }
 };
 
-struct work {
-	uint8_t target[TARGETLEN];
-    uint8_t hash[32];
-    uint64_t nonce;
-
-	char job_id[128];
-	size_t xnonce2_len;
-	unsigned char xnonce2[32];
-	bool done;
-	bool submit;
-};
-
-static struct work g_work;
-static time_t g_work_time;
-static pthread_mutex_t g_work_lock;
 
 static void init_dataset() {
     if (_ds.dataset == 0) {
@@ -209,6 +194,16 @@ inline void restart_threads(void)
 {
 	for (int i = 0; i < opt_n_threads; i++)
 		work_restart[i].restart = 1;
+}
+void get_work_id(char headhash[64]) {
+	if (g_work.done) {
+		char *p = bin2hex(g_work.hash, 32);
+		memcpy(headhash, p, 64);
+	}
+}
+inline bool empty_hash(unsigned char hash[32]) {
+	unsigned char empty[32] = { 0 };
+	return 0 == memcpy(empty, hash, 32);
 }
 static bool jobj_binary(const json_t *obj, const char *key,void *buf, size_t buflen)
 {
@@ -259,12 +254,12 @@ static void share_result(int result, const char *reason)
 static bool submit_upstream_work(CURL *curl, struct work *work)
 {
 	char s[256]={0};
-	//char *noncestr = bin2hex((const unsigned char *)(&work->nonce), 8);
-	// xnonce2str = bin2hex(work->xnonce2, work->xnonce2_len);
-	sprintf(s,"{\"method\": \"mining.submit\", \"params\": [\"%s\", \"%s\", \"%llu\"], \"id\":244}",
-			rpc_user, work->job_id, work->nonce);
-	//free(noncestr);
-	// free(xnonce2str);
+	char *head = bin2hex((const unsigned char *)(&work->hash), 32);
+	char *mix = bin2hex((const unsigned char *)(&work->mixHash), 32);
+	sprintf(s,"{\"id\":3,\"jsonrpc\": \"2.0\",\"method\": \"etrue_submitWork\", \"params\": [\"%llu\", \"%s\", \"%s\"]}",
+		work->nonce, head, mix);
+	free(head);
+	free(mix);
 
 	if (unlikely(!stratum_send_line(&stratum, s)))
 	{
@@ -307,7 +302,7 @@ static bool workio_submit_work(struct workio_cmd *wc, CURL *curl)
 			opt_fail_pause);
 		sleep(opt_fail_pause);
 	}
-
+	stratum_request_work(&stratum);
 	return true;
 }
 
@@ -378,7 +373,6 @@ static bool submit_work(struct thr_info *thr, const struct work *work_in)
 	return true;
 
 err_out:
-	applog(LOG_ERR, "submit_work failed,thread: %d,job_id:%s",thr->id,work_in->job_id);
 	workio_cmd_free(wc);
 	return false;
 }
@@ -386,14 +380,9 @@ err_out:
 static void stratum_gen_work(struct stratum_ctx *sctx, struct work *work)
 {
 	pthread_mutex_lock(&sctx->work_lock);
-	strcpy(work->job_id, sctx->job.job_id);
-	//work->xnonce2_len = sctx->xnonce2_size;
-	//memcpy(work->xnonce2, sctx->job.xnonce2, sctx->xnonce2_size);
 	/* make headhash and target*/
     memcpy(work->hash,sctx->job.headhash,32);
     memcpy(work->target,sctx->job.target,TARGETLEN); 	
-	/* Increment extranonce2 */
-	//for (int i = 0; i < sctx->xnonce2_size && !++sctx->job.xnonce2[i]; i++);
 	pthread_mutex_unlock(&sctx->work_lock);
 }
 
@@ -433,11 +422,11 @@ static void *miner_thread(void *userdata)
 		struct timeval tv_start, tv_end, diff;
 
 		// get work
-		while (!*g_work.job_id || time(NULL) >= g_work_time + 120) { sleep(1); }
+		while (!g_work.done || time(NULL) >= g_work_time + 120) { sleep(1); }
 
 		pthread_mutex_lock(&g_work_lock);
 		stratum_gen_work(&stratum, &g_work);
-		if (memcmp(work.job_id, g_work.job_id, 128)) {
+		if (memcmp(work.hash, g_work.hash, 32)) {
 			memcpy(&work, &g_work, sizeof(struct work));
 		} 
 		pthread_mutex_unlock(&g_work_lock);
@@ -453,15 +442,16 @@ static void *miner_thread(void *userdata)
 		start_nonce = (uint64_t)rand() * (uint64_t)rand() * 10;
 		work_restart[thr_id].restart = 0;	
 		work.nonce = start_nonce;
-		applog(LOG_INFO, "begin miner, thread:%d, job_id:%s,nonce:%llu",
-			thr_id, work.job_id, work.nonce);
+		char *head = bin2hex(work.hash, 32);
+		applog(LOG_INFO, "begin miner, thread:%d, headhash:%s,nonce:%llu",thr_id, head, work.nonce);
+		
 
 		hashes_done = 0;
 		gettimeofday(&tv_start, NULL);
 
 		/* scan nonces for a proof-of-work hash */
 		int rc = scanhash_sha512(thr_id,_ds.dataset,_ds.len,work.hash,work.target,
-                                &work.nonce,max_nonce,&hashes_done);
+                                work.mixHash,&work.nonce,max_nonce,&hashes_done);
 
 		/* record scanhash elapsed time */
 		gettimeofday(&tv_end, NULL);
@@ -492,11 +482,11 @@ static void *miner_thread(void *userdata)
 		if (rc && !opt_benchmark) {
 			restart_threads();
 			work.submit = submit_work(mythr, &work);
-			applog(LOG_INFO, "end miner,thread:%d, job_id:%s,nonce:%llu",
-				thr_id, work.job_id,work.nonce);
+			applog(LOG_INFO, "end miner,thread:%d, headhash:%s,nonce:%llu",thr_id, head,work.nonce);
 			g_work.done = true;
 			work.done = true;
 		}
+		free(head);
 	}
 
 out:
@@ -554,8 +544,7 @@ static void *stratum_thread(void *userdata)
 			restart_threads();
 
 			if (!stratum_connect(&stratum, stratum.url) ||
-			    !stratum_subscribe(&stratum) ||
-			    !stratum_authorize(&stratum, rpc_user, rpc_pass)) {
+				!stratum_authorize(&stratum, coin_base,rpc_user,mail)) {
 				stratum_disconnect(&stratum);
 				if (opt_retries >= 0 && ++failures > opt_retries) {
 					applog(LOG_ERR, "...terminating workio thread");
@@ -565,13 +554,15 @@ static void *stratum_thread(void *userdata)
 				applog(LOG_ERR, "...retry after %d seconds", opt_fail_pause);
 				sleep(opt_fail_pause);
 			}
+			applog(LOG_INFO, "Stratum authentication success,will be request get_Work");
+			stratum_request_work(&stratum);
 		}
 
-        if (stratum.job.job_id && !match_ds_hash(stratum.job.seedhash)) {
+        if (!empty_hash(stratum.job.seedhash) && !match_ds_hash(stratum.job.seedhash)) {
             // update dataset
 			uint8_t seeds[OFF_CYCLE_LEN + SKIP_CYCLE_LEN][16] = { 0 };
 			unsigned char seedhash[32] = { 0 };
-            if (!stratum_update_dataset(&stratum, rpc_user, stratum.job.job_id,seeds,seedhash)) {
+            if (!stratum_update_dataset(&stratum, stratum.job.seedhash,seeds,seedhash)) {
                 applog(LOG_INFO, "Stratum update dataset failed....will be retry.");
             } else {
                 // make new dataset before stop all miner
@@ -589,8 +580,8 @@ static void *stratum_thread(void *userdata)
         }
 
         // keep update dataset already
-		if (stratum.job.job_id && match_ds_hash(stratum.job.seedhash) &&
-		    (strcmp(stratum.job.job_id, g_work.job_id) || !g_work_time)) {
+		if ((!empty_hash(stratum.job.seedhash) && match_ds_hash(stratum.job.seedhash)) &&
+		    (strcmp(stratum.job.headhash, g_work.hash) || !g_work_time)) {
 			pthread_mutex_lock(&g_work_lock);
 			stratum_gen_work(&stratum, &g_work);
 			g_work.done = false;
@@ -666,9 +657,9 @@ static void parse_arg (int key, char *arg)
 	case 'D':
 		opt_debug = true;
 		break;
-	case 'p':
-		free(rpc_pass);
-		rpc_pass = strdup(arg);
+	case 'm':
+		free(mail);
+		mail = strdup(arg);
 		break;
 	case 'P':
 		opt_protocol = true;
@@ -716,39 +707,13 @@ static void parse_arg (int key, char *arg)
 			rpc_url = malloc(strlen(arg) + 8);
 			sprintf(rpc_url, "http://%s", arg);
 		}
-		p = strrchr(rpc_url, '@');
-		if (p) {
-			char *sp, *ap;
-			*p = '\0';
-			ap = strstr(rpc_url, "://") + 3;
-			sp = strchr(ap, ':');
-			if (sp) {
-				free(rpc_userpass);
-				rpc_userpass = strdup(ap);
-				free(rpc_user);
-				rpc_user = calloc(sp - ap + 1, 1);
-				strncpy(rpc_user, ap, sp - ap);
-				free(rpc_pass);
-				rpc_pass = strdup(sp + 1);
-			} else {
-				free(rpc_user);
-				rpc_user = strdup(ap);
-			}
-			memmove(ap, p + 1, strlen(p + 1) + 1);
-		}
 		have_stratum = !opt_benchmark && !strncasecmp(rpc_url, "stratum", 7);
 		break;
-	case 'O':			/* --userpass */
-		p = strchr(arg, ':');
-		if (!p)
+	case 'C':			/* --coinbase*/
+		free(coin_base);
+		coin_base = strdup(arg);
+		if (34 != strlen(coin_base))
 			show_usage_and_exit(1);
-		free(rpc_userpass);
-		rpc_userpass = strdup(arg);
-		free(rpc_user);
-		rpc_user = calloc(p - arg + 1, 1);
-		strncpy(rpc_user, arg, p - arg);
-		free(rpc_pass);
-		rpc_pass = strdup(p + 1);
 		break;
 	case 'x':			/* --proxy */
 		if (!strncasecmp(arg, "socks4://", 9))
@@ -774,9 +739,6 @@ static void parse_arg (int key, char *arg)
 		opt_benchmark = true;
 		want_stratum = false;
 		have_stratum = false;
-		break;
-	case 1007:
-		want_stratum = false;
 		break;
 	case 'S':
 		use_syslog = true;
@@ -873,7 +835,6 @@ int main(int argc, char *argv[])
 	
 	rpc_url = strdup(DEF_RPC_URL);
 	rpc_user = strdup("admin");
-	rpc_pass = strdup("admin");
 
 	/* parse command line */
 	parse_cmdline(argc, argv);
@@ -883,6 +844,7 @@ int main(int argc, char *argv[])
 	pthread_mutex_init(&g_work_lock, NULL);
 	pthread_mutex_init(&stratum.sock_lock, NULL);
 	pthread_mutex_init(&stratum.work_lock, NULL);
+	memset(&stratum.job, 0, sizeof(stratum.job));
 
 	applog(LOG_INFO, "true-miner start...");
 
@@ -928,13 +890,6 @@ int main(int argc, char *argv[])
 		num_processors = 1;
 	if (!opt_n_threads)
 		opt_n_threads = num_processors;
-
-	if (!rpc_userpass) {
-		rpc_userpass = malloc(strlen(rpc_user) + strlen(rpc_pass) + 2);
-		if (!rpc_userpass)
-			return 1;
-		sprintf(rpc_userpass, "%s:%s", rpc_user, rpc_pass);
-	}
 
 #ifdef HAVE_SYSLOG_H
 	if (use_syslog)
