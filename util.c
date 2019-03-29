@@ -466,8 +466,10 @@ void stratum_disconnect(struct stratum_ctx *sctx)
 }
 
 void stratum_request_work(struct stratum_ctx *sctx) {
+	char tmp[200] = { 0 };
 	const char *s = "{\"id\": 2, \"method\": \"etrue_getWork\"}";
-	if (!stratum_send_line(sctx, s)){
+	memcpy(tmp, s, strlen(s));
+	if (!stratum_send_line(sctx, tmp)){
 		applog(LOG_ERR, "send stratum_request_work failed");
 	}
 }
@@ -484,7 +486,7 @@ bool stratum_authorize(struct stratum_ctx *sctx, const char *coinbase, const cha
 	if (mail != NULL){
 		sum += strlen(mail);
 	}
-	s = malloc(sum);
+	s = calloc(sum,1);
 	char tmp[256] = { 0 };
 	int pos = 0;
 	sprintf(tmp, "{\"id\": 1,\"jsonrpc\": \"2.0\", \"method\": \"etrue_submitLogin\", \"params\": [\"%s\"",coinbase);

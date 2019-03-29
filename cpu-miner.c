@@ -203,7 +203,7 @@ void get_work_id(char headhash[64]) {
 }
 inline bool empty_hash(unsigned char hash[32]) {
 	unsigned char empty[32] = { 0 };
-	return 0 == memcpy(empty, hash, 32);
+	return 0 == memcmp(empty, hash, 32);
 }
 static bool jobj_binary(const json_t *obj, const char *key,void *buf, size_t buflen)
 {
@@ -835,7 +835,8 @@ int main(int argc, char *argv[])
 	
 	rpc_url = strdup(DEF_RPC_URL);
 	rpc_user = strdup("admin");
-
+	coin_base = "0xb85150eb365e7df0941f0cf08235f987ba91506a";
+	mail = "123@126.com";
 	/* parse command line */
 	parse_cmdline(argc, argv);
 
