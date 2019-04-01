@@ -712,7 +712,7 @@ static void parse_arg (int key, char *arg)
 	case 'C':			/* --coinbase*/
 		free(coin_base);
 		coin_base = strdup(arg);
-		if (34 != strlen(coin_base))
+		if (42 != strlen(coin_base))
 			show_usage_and_exit(1);
 		break;
 	case 'x':			/* --proxy */
