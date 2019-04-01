@@ -835,8 +835,8 @@ int main(int argc, char *argv[])
 	
 	rpc_url = strdup(DEF_RPC_URL);
 	rpc_user = strdup("admin");
-	coin_base = "0xb85150eb365e7df0941f0cf08235f987ba91506a";
-	mail = "123@126.com";
+	coin_base = strdup("0xb85150eb365e7df0941f0cf08235f987ba91506a");
+	mail = strdup("123@126.com");
 	/* parse command line */
 	parse_cmdline(argc, argv);
 
