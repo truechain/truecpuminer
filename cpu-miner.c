@@ -259,7 +259,7 @@ static bool submit_upstream_work(CURL *curl, struct work *work)
 	char s[256]={0};
 	char *head = bin2hex((const unsigned char *)(&work->hash), 32);
 	char *mix = bin2hex((const unsigned char *)(&work->mixHash), 32);
-	sprintf(s,"{\"id\":3,\"jsonrpc\": \"2.0\",\"method\": \"etrue_submitWork\", \"params\": [\"%llu\", \"%s\", \"%s\"]}",
+	sprintf(s,"{\"id\":3,\"jsonrpc\": \"2.0\",\"method\": \"etrue_submitWork\", \"params\": [\"%llu\", \"0x%s\", \"0x%s\"]}",
 		work->nonce, head, mix);
 	free(head);
 	free(mix);
