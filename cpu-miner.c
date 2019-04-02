@@ -429,9 +429,9 @@ static void *miner_thread(void *userdata)
 
 		pthread_mutex_lock(&g_work_lock);
 		stratum_gen_work(&stratum, &g_work);
-		if (memcmp(work.hash, g_work.hash, 32)) {
-			memcpy(&work, &g_work, sizeof(struct work));
-		} 
+		// if (memcmp(work.hash, g_work.hash, 32)) {
+		memcpy(&work, &g_work, sizeof(struct work));
+		// } 
 		pthread_mutex_unlock(&g_work_lock);
 
 		if (work.done) {
