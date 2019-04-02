@@ -60,6 +60,8 @@ struct work_restart *work_restart = NULL;
 static struct stratum_ctx stratum;
 static struct work g_work;
 static time_t g_work_time;
+static time_t g_work_done_time;
+static bool new_work = false;
 static pthread_mutex_t g_work_lock;
 
 pthread_mutex_t applog_lock;
@@ -195,10 +197,11 @@ inline void restart_threads(void)
 	for (int i = 0; i < opt_n_threads; i++)
 		work_restart[i].restart = 1;
 }
-void get_work_id(char headhash[64]) {
+void get_work_id(char headhash[66]) {
 	if (g_work.done) {
 		char *p = bin2hex(g_work.hash, 32);
-		memcpy(headhash, p, 64);
+		if (p)
+			sprintf(headhash, "0x%s", p);
 	}
 }
 inline bool empty_hash(unsigned char hash[32]) {
@@ -422,7 +425,7 @@ static void *miner_thread(void *userdata)
 		struct timeval tv_start, tv_end, diff;
 
 		// get work
-		while (!g_work.done || time(NULL) >= g_work_time + 120) { sleep(1); }
+		while ((!new_work && !g_work.done) || time(NULL) >= g_work_time + 120) { sleep(1); }
 
 		pthread_mutex_lock(&g_work_lock);
 		stratum_gen_work(&stratum, &g_work);
@@ -485,11 +488,11 @@ static void *miner_thread(void *userdata)
 			applog(LOG_INFO, "end miner,thread:%d, headhash:%s,nonce:%llu",thr_id, head,work.nonce);
 			g_work.done = true;
 			work.done = true;
+			new_work = false;
+			time(&g_work_done_time);
 		}
 		free(head);
 	}
-
-out:
 	tq_freeze(mythr->q);
 	return NULL;
 }
@@ -562,8 +565,17 @@ static void *stratum_thread(void *userdata)
             // update dataset
 			uint8_t seeds[OFF_CYCLE_LEN + SKIP_CYCLE_LEN][16] = { 0 };
 			unsigned char seedhash[32] = { 0 };
-            if (!stratum_update_dataset(&stratum, stratum.job.seedhash,seeds,seedhash)) {
+			char headhash[66] = { 0 };
+			headhash[0] = '0';
+			headhash[1] = 'x';
+			char *hh = bin2hex(stratum.job.seedhash, 32);	
+			if (hh) {
+				sprintf(headhash+2, "%s", hh);
+				free(hh);
+			}
+            if (!stratum_update_dataset(&stratum, headhash,seeds,seedhash)) {
                 applog(LOG_INFO, "Stratum update dataset failed....will be retry.");
+				time(&g_work_done_time);
             } else {
                 // make new dataset before stop all miner
                 if (wait_stop_use_dataset()) {
@@ -585,7 +597,9 @@ static void *stratum_thread(void *userdata)
 			pthread_mutex_lock(&g_work_lock);
 			stratum_gen_work(&stratum, &g_work);
 			g_work.done = false;
+			new_work = true;
 			time(&g_work_time);
+			time(&g_work_done_time);
 			pthread_mutex_unlock(&g_work_lock);
 			if (stratum.job.clean) {
 				applog(LOG_INFO, "Stratum detected new block");
@@ -593,7 +607,12 @@ static void *stratum_thread(void *userdata)
 			}
 		}
 		
-		if (!stratum_socket_full(&stratum, 600)) {
+		if (time(NULL) > g_work_done_time + 60 && g_work.done) {
+			stratum_request_work(&stratum);
+			time(&g_work_done_time);
+		}
+		
+		if (!stratum_socket_full(&stratum, 60)) {
 			applog(LOG_ERR, "Stratum connection timed out");
 			s = NULL;
 		} else
@@ -630,7 +649,7 @@ static void show_usage_and_exit(int status)
 static void parse_arg (int key, char *arg)
 {
 	char *p;
-	int v, i;
+	int v;
 
 	switch(key) {
 	case 'B':

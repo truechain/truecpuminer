@@ -550,7 +550,7 @@ out:
 }
 bool stratum_submit(json_t *val) {
 	json_t *err_val = json_object_get(val, "error");
-	char head[64] = { 0 };
+	char head[67] = { 0 };
 	// make sure thread-safe
 	get_work_id(head);
 	if (err_val && !json_is_null(err_val)) {
