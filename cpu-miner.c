@@ -565,7 +565,7 @@ static void *stratum_thread(void *userdata)
             // update dataset
 			uint8_t seeds[OFF_CYCLE_LEN + SKIP_CYCLE_LEN][16] = { 0 };
 			unsigned char seedhash[32] = { 0 };
-			char headhash[66] = { 0 };
+			char headhash[256] = { 0 };
 			headhash[0] = '0';
 			headhash[1] = 'x';
 			char *hh = bin2hex(stratum.job.seedhash, 32);	
