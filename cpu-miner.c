@@ -561,7 +561,7 @@ static void *stratum_thread(void *userdata)
 			stratum_request_work(&stratum);
 		}
 
-        if (!empty_hash(stratum.job.seedhash) && !match_ds_hash(stratum.job.seedhash)) {
+        if (stratum.job.new_work && !match_ds_hash(stratum.job.seedhash)) {
             // update dataset
 			uint8_t seeds[OFF_CYCLE_LEN + SKIP_CYCLE_LEN][16] = { 0 };
 			unsigned char seedhash[32] = { 0 };
@@ -592,7 +592,7 @@ static void *stratum_thread(void *userdata)
         }
 
         // keep update dataset already
-		if ((!empty_hash(stratum.job.seedhash) && match_ds_hash(stratum.job.seedhash)) &&
+		if ((stratum.job.new_work && match_ds_hash(stratum.job.seedhash)) &&
 		    (strcmp(stratum.job.headhash, g_work.hash) || !g_work_time)) {
 			pthread_mutex_lock(&g_work_lock);
 			stratum_gen_work(&stratum, &g_work);
@@ -601,6 +601,7 @@ static void *stratum_thread(void *userdata)
 			time(&g_work_time);
 			time(&g_work_done_time);
 			pthread_mutex_unlock(&g_work_lock);
+			stratum.job.new_work = false;
 			if (stratum.job.clean) {
 				applog(LOG_INFO, "Stratum detected new block");
 				restart_threads();

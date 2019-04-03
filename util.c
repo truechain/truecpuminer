@@ -589,6 +589,7 @@ static bool stratum_notify(struct stratum_ctx *sctx, json_t *params)
 	hex2bin(sctx->job.headhash, headhash, 66);
 	hex2bin(sctx->job.target, target, 34);
 	sctx->job.clean = true;
+	sctx->job.new_work = true;
 	pthread_mutex_unlock(&sctx->work_lock);
 
 	ret = true;

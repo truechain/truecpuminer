@@ -337,6 +337,7 @@ struct stratum_job {
 	unsigned char headhash[32];
 	unsigned char target[TARGETLEN];
 	unsigned char version[4];
+	bool new_work;
 	bool clean;
 	double diff;
 };
