@@ -604,7 +604,7 @@ static void *stratum_thread(void *userdata)
 			stratum.job.new_work = false;
 			if (stratum.job.clean) {
 				applog(LOG_INFO, "Stratum detected new block");
-				restart_threads();
+				//restart_threads();
 			}
 		}
 		
@@ -916,7 +916,7 @@ int main(int argc, char *argv[])
 	if (use_syslog)
 		openlog("cpuminer", LOG_PID, LOG_USER);
 #endif
-	opt_n_threads = 1;
+	//opt_n_threads = 1;
 	work_restart = calloc(opt_n_threads, sizeof(*work_restart));
 	if (!work_restart)
 		return 1;
