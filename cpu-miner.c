@@ -432,6 +432,7 @@ static void *miner_thread(void *userdata)
 		// if (memcmp(work.hash, g_work.hash, 32)) {
 		memcpy(&work, &g_work, sizeof(struct work));
 		// } 
+		work.done = false;
 		pthread_mutex_unlock(&g_work_lock);
 
 		if (work.done) {
