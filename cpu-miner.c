@@ -904,10 +904,10 @@ int main(int argc, char *argv[])
 		i = chdir("/");
 		if (i < 0)
 			applog(LOG_ERR, "chdir() failed (errno = %d)", errno);
-		signal(SIGHUP, signal_handler);
-		signal(SIGINT, signal_handler);
-		signal(SIGTERM, signal_handler);
 	}
+	signal(SIGHUP, signal_handler);
+	signal(SIGINT, signal_handler);
+	signal(SIGTERM, signal_handler);
 #endif
 
 #if defined(WIN32)
