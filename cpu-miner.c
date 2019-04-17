@@ -609,7 +609,8 @@ static void *stratum_thread(void *userdata)
 			}
 		}
 		
-		if (time(NULL) > g_work_done_time + 60 && g_work.done) {
+		if (time(NULL) > g_work_done_time + 30 && g_work.done) {
+			applog(LOG_INFO, "more than 30s not get work after last job done,request get_Work again");
 			stratum_request_work(&stratum);
 			time(&g_work_done_time);
 		}
