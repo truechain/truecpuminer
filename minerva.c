@@ -937,30 +937,37 @@ int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HE
 	uint8_t head[16] = {0};
 	uint64_t first_nonce = *nonce;
 	work_restart[thr_id].stopped = 0;
+	int ret = 0;
 
 	do {		
 		truehashFull(dataset,dlen,hash,*nonce,&res);
 		// fruit
 		memcpy(head,res.result,16);
 		if (memcmp(head, target, TARGETLEN) < 0) {
-			*hashes_done = *nonce - first_nonce + 1;
-			work_restart[thr_id].stopped = 1;
-			memcpy(mixhash, res.result, 32);
-			return 1;
+			ret = 1;
+			break;
 		}
 		// block
 		memcpy(head,res.result+16,16);
-		if (memcmp(head, target, TARGETLEN) < 0) {
-			*hashes_done = *nonce - first_nonce + 1;
-			work_restart[thr_id].stopped = 1;
-			memcpy(mixhash, res.result, 32);
-			return 1;
+		if (memcmp(head, target, TARGETLEN) < 0) {	
+			ret = 1;
+			break;
 		}
 		(*nonce)++;
 	} while (/**nonce < max_nonce && */!work_restart[thr_id].restart);	
-	*hashes_done = *nonce - first_nonce + 1;
+
+	if (ret) {
+		memcpy(mixhash, res.result, 32);
+	}
+	if (*nonce > first_nonce)
+		*hashes_done = *nonce - first_nonce + 1;
+	else {
+		uint64_t max_nonce = 0xffffffffffffffffull;
+		*hashes_done = max_nonce - first_nonce;
+		*hashes_done += *nonce;
+	}
 	work_restart[thr_id].stopped = 1;
-	return 0;
+	return ret;
 }
 ///////////////////////////////////////////////////////////////////
 

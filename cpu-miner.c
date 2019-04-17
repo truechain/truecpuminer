@@ -57,6 +57,7 @@ static int work_thr_id;
 int longpoll_thr_id = -1;
 int stratum_thr_id = -1;
 struct work_restart *work_restart = NULL;
+double g_hashrates = 0;
 static struct stratum_ctx stratum;
 static struct work g_work;
 static time_t g_work_time;
@@ -197,12 +198,26 @@ inline void restart_threads(void)
 	for (int i = 0; i < opt_n_threads; i++)
 		work_restart[i].restart = 1;
 }
+inline void stop_miner_threads() {
+	for (int i = 0; i < opt_n_threads; i++)
+		work_restart[i].restart = 0;
+}
+
 void get_work_id(char headhash[66]) {
 	if (g_work.done) {
 		char *p = bin2hex(g_work.hash, 32);
 		if (p)
 			sprintf(headhash, "0x%s", p);
 	}
+}
+void get_hashrate(char rate[256]) {
+	double hashrate = 0;
+
+	pthread_mutex_lock(&stats_lock);
+	hashrate = g_hashrates * opt_n_threads;
+	pthread_mutex_unlock(&stats_lock);
+	sprintf(rate, hashrate >= 1e6 ? "%.0f" : "%.2f", 1e-3 * hashrate);
+	return;
 }
 inline bool empty_hash(unsigned char hash[32]) {
 	unsigned char empty[32] = { 0 };
@@ -237,8 +252,9 @@ static void share_result(int result, const char *reason)
 
 	hashrate = 0.;
 	pthread_mutex_lock(&stats_lock);
-	for (i = 0; i < opt_n_threads; i++)
-		hashrate += thr_hashrates[i];
+	hashrate = g_hashrates * opt_n_threads;
+	//for (i = 0; i < opt_n_threads; i++)
+	//	hashrate += thr_hashrates[i];
 	result ? accepted_count++ : rejected_count++;
 	pthread_mutex_unlock(&stats_lock);
 	
@@ -389,6 +405,11 @@ static void stratum_gen_work(struct stratum_ctx *sctx, struct work *work)
 	pthread_mutex_unlock(&sctx->work_lock);
 }
 
+uint64_t randu64_from_th_id(int th_id) {
+	return (uint64_t)rand();
+	//uint64_t n = (uint64_t)rand() * (uint64_t)rand() * 10;
+}
+
 static void *miner_thread(void *userdata)
 {
 	struct thr_info *mythr = userdata;
@@ -442,7 +463,7 @@ static void *miner_thread(void *userdata)
 			sleep(1);
 			continue;
 		}
-		start_nonce = (uint64_t)rand() * (uint64_t)rand() * 10;
+		start_nonce = randu64_from_th_id(thr_id);
 		work_restart[thr_id].restart = 0;	
 		work.nonce = start_nonce;
 		char *head = bin2hex(work.hash, 32);
@@ -458,20 +479,24 @@ static void *miner_thread(void *userdata)
 
 		/* record scanhash elapsed time */
 		gettimeofday(&tv_end, NULL);
+		if (rc) {
+			stop_miner_threads();
+		}
 		timeval_subtract(&diff, &tv_end, &tv_start);
-		if (diff.tv_usec || diff.tv_sec) {
+		if (rc && (diff.tv_usec || diff.tv_sec)) {
 			pthread_mutex_lock(&stats_lock);
 			thr_hashrates[thr_id] =
 				hashes_done / (diff.tv_sec + 1e-6 * diff.tv_usec);
+			g_hashrates = thr_hashrates[thr_id];
 			pthread_mutex_unlock(&stats_lock);
 		}
-		if (!opt_quiet) {
+		if (rc && !opt_quiet) {
 			sprintf(s, thr_hashrates[thr_id] >= 1e6 ? "%.0f" : "%.2f",
 				1e-3 * thr_hashrates[thr_id]);
 			applog(LOG_INFO, "thread %d: %lu hashes, %s khash/s",
 				thr_id, hashes_done, s);
 		}
-		if (opt_benchmark && thr_id == opt_n_threads - 1) {
+		if (rc && opt_benchmark && thr_id == opt_n_threads - 1) {
 			double hashrate = 0.;
 			int i;
 			for (i = 0; i < opt_n_threads && thr_hashrates[i]; i++)

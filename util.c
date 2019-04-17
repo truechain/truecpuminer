@@ -645,7 +645,28 @@ static bool stratum_get_version(struct stratum_ctx *sctx, json_t *id)
 
 	return ret;
 }
+static bool stratum_get_hashrate(struct stratum_ctx *sctx, json_t *id)
+{
+	char *s;
+	json_t *val;
+	bool ret;
 
+	if (!id || json_is_null(id))
+		return false;
+
+	val = json_object();
+	json_object_set(val, "id", id);
+	json_object_set_new(val, "error", json_null());
+	char rate[256] = { 0 };
+	get_hashrate(rate);
+	json_object_set_new(val, "result", json_string(rate));
+	s = json_dumps(val, 0);
+	ret = stratum_send_line(sctx, s);
+	json_decref(val);
+	free(s);
+
+	return ret;
+}
 static bool stratum_show_message(struct stratum_ctx *sctx, json_t *id, json_t *params)
 {
 	char *s;
@@ -771,6 +792,10 @@ bool stratum_handle_method(struct stratum_ctx *sctx, const char *s)
 	}
 	if (!strcasecmp(method, "etrue_get_version")) {
 		ret = stratum_get_version(sctx, id);
+		goto out;
+	}
+	if (!strcasecmp(method, "etrue_get_hashrate")) {
+		ret = stratum_get_hashrate(sctx, id);
 		goto out;
 	}
 	// not used
