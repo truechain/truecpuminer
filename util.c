@@ -631,8 +631,8 @@ static bool stratum_get_version(struct stratum_ctx *sctx, json_t *id)
 	json_t *val;
 	bool ret;
 	
-	if (!id || json_is_null(id))
-		return false;
+// 	if (!id || json_is_null(id))
+// 		return false;
 
 	val = json_object();
 	json_object_set(val, "id", id);
@@ -651,8 +651,6 @@ static bool stratum_get_hashrate(struct stratum_ctx *sctx, json_t *id)
 	json_t *val;
 	bool ret;
 
-	if (!id || json_is_null(id))
-		return false;
 
 	val = json_object();
 	json_object_set(val, "id", id);
