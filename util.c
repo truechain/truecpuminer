@@ -657,6 +657,7 @@ static bool stratum_get_hashrate(struct stratum_ctx *sctx, json_t *id)
 	val = json_object();
 	json_object_set(val, "id", id);
 	json_object_set_new(val, "error", json_null());
+	json_object_set_new(val, "method", json_string("etrue_get_hashrate"));
 	char rate[256] = { 0 };
 	get_hashrate(rate);
 	json_object_set_new(val, "result", json_string(rate));
