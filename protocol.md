@@ -215,3 +215,27 @@ Client:
   "error": null
 ```
 
+###     6.获取hashrate
+
+矿池获取矿机获取hashrate。
+
+
+Server:
+
+```
+{
+  "id": 6,
+  "method": "etrue_get_hashrate"
+}
+```
+
+
+Client:
+
+```
+  "id": 6,
+  "method": "etrue_get_hashrate",
+  "result": "0.06",
+  "error": null
+```
+**result**: 0.06 khash/s

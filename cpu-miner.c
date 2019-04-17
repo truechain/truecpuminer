@@ -198,11 +198,6 @@ inline void restart_threads(void)
 	for (int i = 0; i < opt_n_threads; i++)
 		work_restart[i].restart = 1;
 }
-inline void stop_miner_threads() {
-	for (int i = 0; i < opt_n_threads; i++)
-		work_restart[i].restart = 0;
-}
-
 void get_work_id(char headhash[66]) {
 	if (g_work.done) {
 		char *p = bin2hex(g_work.hash, 32);
@@ -248,7 +243,6 @@ static void share_result(int result, const char *reason)
 {
 	char s[345];
 	double hashrate;
-	int i;
 
 	hashrate = 0.;
 	pthread_mutex_lock(&stats_lock);
@@ -479,24 +473,21 @@ static void *miner_thread(void *userdata)
 
 		/* record scanhash elapsed time */
 		gettimeofday(&tv_end, NULL);
-		if (rc) {
-			stop_miner_threads();
-		}
 		timeval_subtract(&diff, &tv_end, &tv_start);
-		if (rc && (diff.tv_usec || diff.tv_sec)) {
+		if (diff.tv_usec || diff.tv_sec) {
 			pthread_mutex_lock(&stats_lock);
 			thr_hashrates[thr_id] =
 				hashes_done / (diff.tv_sec + 1e-6 * diff.tv_usec);
 			g_hashrates = thr_hashrates[thr_id];
 			pthread_mutex_unlock(&stats_lock);
 		}
-		if (rc && !opt_quiet) {
+		if (!opt_quiet) {
 			sprintf(s, thr_hashrates[thr_id] >= 1e6 ? "%.0f" : "%.2f",
 				1e-3 * thr_hashrates[thr_id]);
 			applog(LOG_INFO, "thread %d: %lu hashes, %s khash/s",
 				thr_id, hashes_done, s);
 		}
-		if (rc && opt_benchmark && thr_id == opt_n_threads - 1) {
+		if (opt_benchmark && thr_id == opt_n_threads - 1) {
 			double hashrate = 0.;
 			int i;
 			for (i = 0; i < opt_n_threads && thr_hashrates[i]; i++)
@@ -508,7 +499,6 @@ static void *miner_thread(void *userdata)
 		}
 		/* if nonce found, submit work */
 		if (rc && !opt_benchmark) {
-			restart_threads();
 			work.submit = submit_work(mythr, &work);
 			applog(LOG_INFO, "end miner,thread:%d, headhash:%s,nonce:%llu",thr_id, head,work.nonce);
 			g_work.done = true;
@@ -627,9 +617,9 @@ static void *stratum_thread(void *userdata)
 			time(&g_work_done_time);
 			pthread_mutex_unlock(&g_work_lock);
 			stratum.job.new_work = false;
+			restart_threads();
 			if (stratum.job.clean) {
 				applog(LOG_INFO, "Stratum detected new block");
-				//restart_threads();
 			}
 		}
 		
