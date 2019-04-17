@@ -425,7 +425,7 @@ static void *miner_thread(void *userdata)
 		setpriority(PRIO_PROCESS, 0, 19);
 		drop_policy();
 	}
-
+	srand((unsigned)time(NULL)+thr_id*10);
 	/* Cpu affinity only makes sense if the number of threads is a multiple
 	 * of the number of CPUs */
 	if (num_processors > 1 && opt_n_threads % num_processors == 0) {
@@ -457,7 +457,7 @@ static void *miner_thread(void *userdata)
 			sleep(1);
 			continue;
 		}
-		start_nonce = randu64_from_th_id(thr_id);
+		start_nonce = (uint64_t)rand();
 		work_restart[thr_id].restart = 0;	
 		work.nonce = start_nonce;
 		char *head = bin2hex(work.hash, 32);
@@ -946,7 +946,6 @@ int main(int argc, char *argv[])
 	if (!thr_hashrates)
 		return 1;
 
-	srand((unsigned)time(NULL));
 	//test_minerva();
     init_dataset();
 	//char *seedhash = bin2hex(_ds.seedhash, 32);
@@ -998,6 +997,7 @@ int main(int argc, char *argv[])
 			applog(LOG_ERR, "thread %d create failed", i);
 			return 1;
 		}
+		sleep(300);
 	}
 
 	applog(LOG_INFO, "%d miner threads started, "
