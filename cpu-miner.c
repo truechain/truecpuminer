@@ -442,7 +442,6 @@ static void *miner_thread(void *userdata)
 			sleep(1);
 			continue;
 		}
-		srand((unsigned)time(NULL));
 		start_nonce = (uint64_t)rand() * (uint64_t)rand() * 10;
 		work_restart[thr_id].restart = 0;	
 		work.nonce = start_nonce;
@@ -931,6 +930,8 @@ int main(int argc, char *argv[])
 	thr_hashrates = (double *) calloc(opt_n_threads, sizeof(double));
 	if (!thr_hashrates)
 		return 1;
+
+	srand((unsigned)time(NULL));
 	//test_minerva();
     init_dataset();
 	//char *seedhash = bin2hex(_ds.seedhash, 32);
