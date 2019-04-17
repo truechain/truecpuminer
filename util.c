@@ -579,7 +579,7 @@ static bool stratum_notify(struct stratum_ctx *sctx, json_t *params)
 
 	if (!seedhash || !headhash || !target ||
 	    strlen(seedhash) != 66 || strlen(headhash) != 66 || 
-		strlen(target) != 34) {
+		strlen(target) != 66) {
 		applog(LOG_ERR, "Stratum notify: invalid parameters");
 		goto out;
 	}
@@ -587,7 +587,7 @@ static bool stratum_notify(struct stratum_ctx *sctx, json_t *params)
 	pthread_mutex_lock(&sctx->work_lock);
 	hex2bin(sctx->job.seedhash, seedhash, 66);
 	hex2bin(sctx->job.headhash, headhash, 66);
-	hex2bin(sctx->job.target, target, 34);
+	hex2bin(sctx->job.target, target, 66);
 	sctx->job.clean = true;
 	sctx->job.new_work = true;
 	pthread_mutex_unlock(&sctx->work_lock);

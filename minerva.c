@@ -852,7 +852,7 @@ void make_hash_from_set(uint8_t hash[32], int *data, int len) {
 	}
 	bool ret = sha3_256_hash(hash, 32, datas, data_len);
 	free(datas);
-	return ret;
+	//return ret;
 }
 void truehashTableInit(uint64_t *tableLookup,int tlen) {
 	uint32_t table[TBLSIZE * DATALENGTH * PMTSIZE] = {0};
@@ -927,8 +927,7 @@ uint64_t* updateLookupTBL(uint8_t seeds[OFF_CYCLE_LEN+SKIP_CYCLE_LEN][16],uint64
 }
 
 void truehashFull(uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint64_t nonce,struct miner_result *res){
-
-	return fchainmining(dataset,dlen, hash, nonce,res);
+	fchainmining(dataset,dlen, hash, nonce,res);
 }
 int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HEADSIZE], uint8_t target[TARGETLEN],
 	uint8_t mixhash[HEADSIZE],uint64_t *nonce,uint64_t max_nonce, uint64_t *hashes_done)
@@ -938,18 +937,21 @@ int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HE
 	uint64_t first_nonce = *nonce;
 	work_restart[thr_id].stopped = 0;
 	int ret = 0;
+	uint8_t t_fruit[16] = { 0 }, t_block[16] = { 0 };
+	memcpy(t_fruit, target, 16);
+	memcpy(t_block, target + 16, 16);
 
 	do {		
 		truehashFull(dataset,dlen,hash,*nonce,&res);
 		// fruit
 		memcpy(head,res.result,16);
-		if (memcmp(head, target, TARGETLEN) < 0) {
+		if (memcmp(head, t_fruit, 16) < 0) {
 			ret = 1;
 			break;
 		}
 		// block
 		memcpy(head,res.result+16,16);
-		if (memcmp(head, target, TARGETLEN) < 0) {	
+		if (memcmp(head, t_block, 16) < 0) {
 			ret = 1;
 			break;
 		}
@@ -1057,9 +1059,9 @@ void test_minerva() {
 	uint8_t hash[HEADSIZE] = { 0 };
 	hex2bin(hash, chash, 64);
 	output_bytes(hash, HEADSIZE, "headhash:");
-	char ctarget[] = { "0000a7c5ac471b4784230fcf80dc3372" };
+	char ctarget[] = { "0000a7c5ac471b4784230fcf80dc33720000a7c5ac471b4784230fcf80dc3372" };
 	uint8_t target[TARGETLEN] = { 0 };
-	hex2bin(target, ctarget,32);
+	hex2bin(target, ctarget,64);
 	output_bytes(target, TARGETLEN, "target:");
 
 	uint64_t start_nonce = 80408;
