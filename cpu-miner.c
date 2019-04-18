@@ -997,7 +997,7 @@ int main(int argc, char *argv[])
 			applog(LOG_ERR, "thread %d create failed", i);
 			return 1;
 		}
-		sleep(300);
+		sleep(1);
 	}
 
 	applog(LOG_INFO, "%d miner threads started, "
