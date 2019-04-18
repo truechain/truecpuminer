@@ -409,7 +409,7 @@ static void *miner_thread(void *userdata)
 	struct thr_info *mythr = userdata;
 	int thr_id = mythr->id;
 	struct work work;
-	char s[16];
+	char s[64];
 	uint64_t end_nonce = 0xffffffffffffffffull;
 	uint64_t start_nonce = end_nonce / opt_n_threads * thr_id;
 	uint64_t max_nonce = end_nonce;

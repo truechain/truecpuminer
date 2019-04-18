@@ -961,12 +961,12 @@ int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HE
 	if (ret) {
 		memcpy(mixhash, res.result, 32);
 	}
-	if (*nonce > first_nonce)
+	if (*nonce >= first_nonce)
 		*hashes_done = *nonce - first_nonce + 1;
 	else {
 		uint64_t max_nonce = 0xffffffffffffffffull;
 		*hashes_done = max_nonce - first_nonce;
-		*hashes_done += *nonce;
+		*hashes_done += (*nonce+1);
 	}
 	work_restart[thr_id].stopped = 1;
 	return ret;
