@@ -608,7 +608,7 @@ static void *stratum_thread(void *userdata)
 
         // keep update dataset already
 		if ((stratum.job.new_work && match_ds_hash(stratum.job.seedhash)) &&
-		    (strcmp(stratum.job.headhash, g_work.hash) || !g_work_time)) {
+		    (g_work.done || !g_work_time)) {
 			pthread_mutex_lock(&g_work_lock);
 			stratum_gen_work(&stratum, &g_work);
 			g_work.done = false;

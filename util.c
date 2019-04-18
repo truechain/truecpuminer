@@ -663,7 +663,7 @@ static bool stratum_get_hashrate(struct stratum_ctx *sctx, json_t *id)
 	ret = stratum_send_line(sctx, s);
 	json_decref(val);
 	free(s);
-
+	applog(LOG_INFO, "handle get_hashrate,hashrate:%s khash/s", rate);
 	return ret;
 }
 static bool stratum_show_message(struct stratum_ctx *sctx, json_t *id, json_t *params)
