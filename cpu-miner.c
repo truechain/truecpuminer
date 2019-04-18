@@ -10,6 +10,7 @@
 #define _GNU_SOURCE
 
 #include "miner.h"
+#include "rand.h"
 
 #define PROGRAM_NAME	"true-minerd"
 // #define DEF_RPC_URL		"http://127.0.0.1:9332/"
@@ -399,11 +400,6 @@ static void stratum_gen_work(struct stratum_ctx *sctx, struct work *work)
 	pthread_mutex_unlock(&sctx->work_lock);
 }
 
-uint64_t randu64_from_th_id(int th_id) {
-	return (uint64_t)rand();
-	//uint64_t n = (uint64_t)rand() * (uint64_t)rand() * 10;
-}
-
 static void *miner_thread(void *userdata)
 {
 	struct thr_info *mythr = userdata;
@@ -413,6 +409,9 @@ static void *miner_thread(void *userdata)
 	uint64_t end_nonce = 0xffffffffffffffffull;
 	uint64_t start_nonce = end_nonce / opt_n_threads * thr_id;
 	uint64_t max_nonce = end_nonce;
+	randctx64 ctx64;
+	rand64_init(&ctx64, RAND_TRUE);
+
 	//uint64_t max_nonce = start_nonce + end_nonce / opt_n_threads;
 	//if (opt_n_threads == thr_id + 1) {
 	//	max_nonce = end_nonce;
@@ -425,7 +424,7 @@ static void *miner_thread(void *userdata)
 		setpriority(PRIO_PROCESS, 0, 19);
 		drop_policy();
 	}
-	srand((unsigned)time(NULL)+thr_id*10);
+
 	/* Cpu affinity only makes sense if the number of threads is a multiple
 	 * of the number of CPUs */
 	if (num_processors > 1 && opt_n_threads % num_processors == 0) {
@@ -457,7 +456,7 @@ static void *miner_thread(void *userdata)
 			sleep(1);
 			continue;
 		}
-		start_nonce = (uint64_t)rand();
+		start_nonce = (uint64_t)rand64(&ctx64);
 		work_restart[thr_id].restart = 0;	
 		work.nonce = start_nonce;
 		char *head = bin2hex(work.hash, 32);
