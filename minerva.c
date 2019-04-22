@@ -938,20 +938,20 @@ int scanhash_sha512(int thr_id, const uint64_t *dataset,int dlen,uint8_t hash[HE
 	work_restart[thr_id].stopped = 0;
 	int ret = 0;
 	uint8_t t_fruit[16] = { 0 }, t_block[16] = { 0 };
-	memcpy(t_fruit, target, 16);
-	memcpy(t_block, target + 16, 16);
+	memcpy(t_block, target, 16);
+	memcpy(t_fruit, target + 16, 16);
 
 	do {		
 		truehashFull(dataset,dlen,hash,*nonce,&res);
-		// fruit
+		// block
 		memcpy(head,res.result,16);
-		if (memcmp(head, t_fruit, 16) < 0) {
+		if (memcmp(head, t_block, 16) < 0) {
 			ret = 1;
 			break;
 		}
-		// block
+		// fruit
 		memcpy(head,res.result+16,16);
-		if (memcmp(head, t_block, 16) < 0) {
+		if (memcmp(head, t_fruit, 16) < 0) {
 			ret = 1;
 			break;
 		}

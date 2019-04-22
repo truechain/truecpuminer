@@ -628,7 +628,7 @@ static void *stratum_thread(void *userdata)
 			time(&g_work_done_time);
 		}
 		
-		if (!stratum_socket_full(&stratum, 60)) {
+		if (!stratum_socket_full(&stratum, 600)) {
 			applog(LOG_ERR, "Stratum connection timed out");
 			s = NULL;
 		} else
