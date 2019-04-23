@@ -94,7 +94,7 @@ static char const usage[] = "\
 Usage: " PROGRAM_NAME " [OPTIONS]\n\
 Options:\n\
   -o, --url=URL         URL of mining server (default: " DEF_RPC_URL ")\n\
-  -C, --coinbase=0x***  coinbase for mining reward(34 char length)\n\
+  -C, --coinbase=0x***  coinbase for mining reward or user name\n\
   -u, --user=USERNAME   username for mining server\n\
   -m, --mail=Mail       mail for mining server\n\
       --cert=FILE       certificate for mining server using SSL\n\
@@ -750,7 +750,7 @@ static void parse_arg (int key, char *arg)
 	case 'C':			/* --coinbase*/
 		free(coin_base);
 		coin_base = strdup(arg);
-		if (42 != strlen(coin_base))
+		if (0 >= strlen(coin_base))
 			show_usage_and_exit(1);
 		break;
 	case 'x':			/* --proxy */
