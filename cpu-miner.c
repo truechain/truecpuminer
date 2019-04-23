@@ -203,7 +203,10 @@ void get_work_id(char headhash[66]) {
 	if (g_work.done) {
 		char *p = bin2hex(g_work.hash, 32);
 		if (p)
+		{
 			sprintf(headhash, "0x%s", p);
+			free(p);
+		}
 	}
 }
 void get_hashrate(char rate[256]) {
