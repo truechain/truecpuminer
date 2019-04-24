@@ -153,13 +153,13 @@ void sha3_256(unsigned char *d, unsigned int s, const unsigned char *m,
 
 		/* calling KeccakP */
 		keccakp(os); 
+		free(inputStringKeccaKP);
 	}
 
 	/*Free memory not used anymore*/
-	free(inputStringKeccaKP);
 	free(oc);
 	free(string_div);
-
+	free(concat);
 	/* Squeezing phase */
 	/* Allocate Z as a pointer to null */
 	unsigned char *Z = NULL; 
